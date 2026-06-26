@@ -16,6 +16,16 @@ class GameRulesTest {
     }
 
     @Test
+    fun newGameStartsWithCorrectDeckSize() {
+        val engine = GameEngine()
+        val state = engine.newGame(GameSettings(deckMode = DeckMode.CARDS_36, playerCount = 2))
+        val cardsInHands = state.players.sumOf { it.hand.size }
+        assertEquals(36, cardsInHands + state.drawPile.size)
+        assertEquals(6, state.players[0].hand.size)
+        assertEquals(6, state.players[1].hand.size)
+    }
+
+    @Test
     fun trumpComparisonBeatsNonTrump() {
         val attack = Card(Suit.CLUBS, Rank.ACE)
         val defense = Card(Suit.HEARTS, Rank.SIX)
@@ -39,12 +49,56 @@ class GameRulesTest {
     }
 
     @Test
+    fun legalCardsReturnedForAttack() {
+        val state = baseState(GameMode.THROW_IN)
+        assertTrue(Card(Suit.HEARTS, Rank.NINE) in rules.legalCards(state, 0))
+    }
+
+    @Test
+    fun legalCardsReturnedForDefense() {
+        val state = baseState(GameMode.THROW_IN).copy(
+            table = listOf(TableCard(Card(Suit.CLUBS, Rank.NINE))),
+            attackerIndex = 0,
+            defenderIndex = 1
+        )
+        assertTrue(Card(Suit.HEARTS, Rank.NINE) in rules.legalCards(state, 1))
+    }
+
+    @Test
+    fun illegalDraggedCardIsRejected() {
+        val engine = GameEngine()
+        val state = baseState(GameMode.THROW_IN).copy(
+            table = listOf(TableCard(Card(Suit.CLUBS, Rank.NINE))),
+            players = listOf(
+                Player(0, "You", true, listOf(Card(Suit.HEARTS, Rank.NINE), Card(Suit.HEARTS, Rank.ACE))),
+                Player(1, "AI 1", false, listOf(Card(Suit.SPADES, Rank.ACE))),
+                Player(2, "AI 2", false, listOf(Card(Suit.CLUBS, Rank.SIX), Card(Suit.DIAMONDS, Rank.SEVEN)))
+            ),
+            attackerIndex = 0,
+            defenderIndex = 1
+        )
+        val result = engine.playCard(state, 1, Card(Suit.SPADES, Rank.ACE))
+        assertEquals(state, result.state)
+    }
+
+    @Test
     fun passingRequiresMatchingRankAndNextDefenderCapacity() {
         val state = baseState(GameMode.PASSING).copy(
             table = listOf(TableCard(Card(Suit.CLUBS, Rank.NINE)))
         )
         assertTrue(rules.canPass(state, 1, Card(Suit.HEARTS, Rank.NINE)))
         assertFalse(rules.canPass(state, 1, Card(Suit.HEARTS, Rank.ACE)))
+    }
+
+    @Test
+    fun passingActionOnlyAppearsWhenLegal() {
+        val state = baseState(GameMode.PASSING).copy(
+            table = listOf(TableCard(Card(Suit.CLUBS, Rank.NINE)))
+        )
+        assertTrue(rules.canAnyPass(state, 1))
+
+        val noPass = state.copy(settings = state.settings.copy(gameMode = GameMode.THROW_IN))
+        assertFalse(rules.canAnyPass(noPass, 1))
     }
 
     @Test

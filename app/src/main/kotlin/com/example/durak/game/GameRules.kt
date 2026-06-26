@@ -41,6 +41,9 @@ class GameRules {
         return state.settings.gameMode == GameMode.CASUAL || nextHandSize >= newAttackCount
     }
 
+    fun canAnyPass(state: GameState, playerIndex: Int): Boolean =
+        state.players.getOrNull(playerIndex)?.hand?.any { canPass(state, playerIndex, it) } == true
+
     fun canEndAttack(state: GameState, playerIndex: Int): Boolean =
         state.status == GameStatus.IN_PROGRESS &&
             playerIndex == state.attackerIndex &&
@@ -55,6 +58,9 @@ class GameRules {
                 canPass(state, playerIndex, card)
         }
     }
+
+    fun legalPassCards(state: GameState, playerIndex: Int): Set<Card> =
+        state.players.getOrNull(playerIndex)?.hand?.filterTo(mutableSetOf()) { canPass(state, playerIndex, it) }.orEmpty()
 
     private fun hasAttackCapacity(state: GameState): Boolean {
         val defender = state.players[state.defenderIndex]
