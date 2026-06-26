@@ -8,11 +8,11 @@ permission.
 
 ## Download
 
-[Download the latest APK](../../releases/latest/download/durak-debug.apk)
+[Download the latest APK](../../releases/latest/download/durak-vibed-debug.apk)
 
 ## Install on GrapheneOS
 
-1. Download `durak-debug.apk` from the latest release.
+1. Download `durak-vibed-debug.apk` from the latest release.
 2. Open the APK from the Files app.
 3. Allow installation from that source if GrapheneOS asks.
 4. Install and launch `Durak`.
@@ -30,7 +30,9 @@ permission.
 - Android launcher icon generated from `new.png`.
 - Drag cards from your hand to the table to attack, defend, add matching ranks, or transfer.
 - Contextual actions for `Done`, `Take`, and `Pass`.
-- Local settings for animation speed, card style, hints, and confirmations.
+- Local settings for AI/table animation speed, card style, hint color, hints, and confirmations.
+- Distinct AI player badges, defense snap animation, and table cards flying to the correct take/discard target.
+- Configurable legal move highlight color.
 
 ## Privacy
 
@@ -69,6 +71,15 @@ Output:
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Release APKs are attached to GitHub Releases, not stored in the repository root.
+
+## Current UI Notes
+
+- AI/table animation speed has three modes: Fast, Normal, and Slow.
+- The speed setting controls AI throw timing and table card movement into take/discard targets.
+- Hand cards support tap-to-play and drag-to-drop.
+- The game info panel intentionally omits deck count and attacker/defender text to keep the prompt and event text readable.
 
 Run unit tests:
 

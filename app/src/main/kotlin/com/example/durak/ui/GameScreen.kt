@@ -91,8 +91,9 @@ fun GameScreen(viewModel: GameViewModel) {
         previousState = state
         val oldTable = oldState.table
         if (oldTable.isNotEmpty() && state.table.isEmpty()) {
-            val took = state.message.contains("took", ignoreCase = true)
-            val takingPlayer = oldState.defenderIndex
+            val took = state.message.contains("took", ignoreCase = true) ||
+                state.message.contains("takes", ignoreCase = true)
+            val takingPlayer = oldState.takingDefenderIndex ?: oldState.defenderIndex
             val direction = when {
                 took && takingPlayer == 0 -> TableExitDirection.HUMAN_TAKE
                 took -> TableExitDirection.AI_TAKE

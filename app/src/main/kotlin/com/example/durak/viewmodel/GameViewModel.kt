@@ -246,24 +246,23 @@ class GameViewModel(
         }
 
     private fun aiDelayMillis(state: GameState): Long {
-        if (appPreferences.animationSpeed.aiDelayMillis == 0L) return 0L
         val base = when (state.settings.aiDifficulty) {
             com.example.durak.game.AiDifficulty.EASY -> 500L
             com.example.durak.game.AiDifficulty.NORMAL -> 700L
             com.example.durak.game.AiDifficulty.HARD -> 850L
         }
         return when (appPreferences.animationSpeed) {
-            com.example.durak.data.AnimationSpeed.OFF -> 0L
             com.example.durak.data.AnimationSpeed.FAST -> (base * 0.6f).toLong()
             com.example.durak.data.AnimationSpeed.NORMAL -> base
+            com.example.durak.data.AnimationSpeed.SLOW -> (base * 1.55f).toLong()
         }
     }
 
     private fun aiAfterMovePauseMillis(): Long =
         when (appPreferences.animationSpeed) {
-            com.example.durak.data.AnimationSpeed.OFF -> 0L
             com.example.durak.data.AnimationSpeed.FAST -> 360L
             com.example.durak.data.AnimationSpeed.NORMAL -> 620L
+            com.example.durak.data.AnimationSpeed.SLOW -> 960L
         }
 
     private fun persistGame() {

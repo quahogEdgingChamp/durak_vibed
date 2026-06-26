@@ -7,9 +7,9 @@ import com.example.durak.game.GameMode
 import com.example.durak.game.GameSettings
 
 enum class AnimationSpeed(val title: String, val aiDelayMillis: Long) {
-    OFF("Off", 0L),
+    FAST("Fast", 300L),
     NORMAL("Normal", 700L),
-    FAST("Fast", 300L)
+    SLOW("Slow", 1100L)
 }
 
 enum class CardStyle(val title: String) {

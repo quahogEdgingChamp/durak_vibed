@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -98,9 +99,11 @@ fun TableExitOverlay(
                 cardSize = CardSize(48.dp, 70.dp),
                 style = cardStyle,
                 modifier = Modifier
+                    .offset(
+                        x = (x + spread).dp,
+                        y = (y - index * 2f * progress).dp
+                    )
                     .graphicsLayer {
-                        translationX = x + spread
-                        translationY = y - index * 2f * progress
                         rotationZ = if (current.direction == TableExitDirection.DISCARD) (index - 1) * 3f * progress else 0f
                         scaleX = 1f - progress * if (current.direction == TableExitDirection.DISCARD) 0.24f else 0.08f
                         scaleY = 1f - progress * if (current.direction == TableExitDirection.DISCARD) 0.24f else 0.08f

@@ -55,7 +55,7 @@ fun GameInfoPanel(
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
-                    "Deck ${state.deckRemaining}",
+                    "Trump",
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold
@@ -76,28 +76,19 @@ fun GameInfoPanel(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                "${state.settings.gameMode.title}  |  Attacker: ${state.players[state.attackerIndex].name}  |  Defender: ${state.players[state.defenderIndex].name}",
+                "${state.settings.gameMode.title}  |  Table ${state.table.size}  |  Bita ${state.discardPile.size}",
                 color = Color.White.copy(alpha = 0.82f),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                "Trump ${state.trumpCard}",
-                color = Color.White.copy(alpha = 0.68f),
+                latestEvent.ifBlank { "Choose a move when your cards are highlighted." },
+                color = Color(0xFFFFE4A0),
                 style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            if (latestEvent.isNotBlank()) {
-                Text(
-                    latestEvent,
-                    color = Color(0xFFFFE4A0),
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
         }
 
         Button(

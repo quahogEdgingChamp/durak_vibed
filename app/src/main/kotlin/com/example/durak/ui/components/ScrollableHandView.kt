@@ -4,7 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -107,7 +107,7 @@ private fun DraggableHandCard(
             .zIndex(if (dragging) 100f else 0f)
             .onGloballyPositioned { bounds = it.boundsInRoot() }
             .pointerInput(card) {
-                detectDragGesturesAfterLongPress(
+                detectDragGestures(
                     onDragStart = {
                         currentCenter = bounds?.center ?: Offset.Zero
                         dragging = true

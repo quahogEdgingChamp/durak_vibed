@@ -11,8 +11,8 @@ object AnimationDurations {
 
     fun scale(durationMs: Int, speed: AnimationSpeed): Int =
         when (speed) {
-            AnimationSpeed.OFF -> 0
             AnimationSpeed.FAST -> (durationMs * 0.62f).toInt()
             AnimationSpeed.NORMAL -> durationMs
+            AnimationSpeed.SLOW -> (durationMs * 1.45f).toInt()
         }
 }

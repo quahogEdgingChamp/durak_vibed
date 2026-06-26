@@ -33,7 +33,12 @@ Recent local changes on 2026-06-26:
 - Added a spring-style defense-card snap/settle animation.
 - Added a visible side discard/bita pile marker and table-exit animation toward it after successful defense.
 - Added persisted legal hint color presets in Settings.
-- Built a repo-level debug APK artifact: `durak-vibed-debug.apk`.
+- Fixed take animations so cards fly toward the taking human or AI panel instead of fading in place.
+- Switched hand card dragging from long-press drag to regular drag while preserving tap-to-play.
+- Simplified the game info panel by removing deck count and attacker/defender text; it now prioritizes prompt, mode, table/bita count, trump, and latest event.
+- Animation speed now has exactly three modes: Fast, Normal, Slow.
+- Animation speed controls AI card timing and table card motion into take/discard/bita targets.
+- Release APKs are attached to GitHub Releases as `durak-vibed-debug.apk`; APKs should not be kept in the repo root.
 
 ## What The App Is
 
@@ -58,7 +63,7 @@ Screens are controlled manually by `GameViewModel.screen`; there is no Navigatio
 - `NEW_GAME`: deck size, game mode, player count, AI difficulty, and Start Game.
 - `RULES`: static explanation of Classic, Transfer, Casual, attack limits, decks, and drag/drop basics.
 - `SETTINGS`: animation speed, card style, legal hint color, legal move hints, confirm new game.
-- `GAME`: main table, opponents, info panel, action bar, human hand, drag overlay, pause menu.
+- `GAME`: main table, opponents, compact info panel, action bar, human hand, drag overlay, discard marker, pause menu.
 - `END`: game result plus Play Again and Main Menu.
 
 ## Main Files
@@ -126,11 +131,13 @@ APK output:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Convenience APK copied to the repo root for download:
+Release APK asset name:
 
 ```text
 durak-vibed-debug.apk
 ```
+
+APK files are attached to GitHub Releases and intentionally not committed in the repo root.
 
 Run unit tests:
 
@@ -196,7 +203,7 @@ AI difficulties:
 
 App preferences:
 
-- Animation speed: Off, Normal, Fast.
+- Animation speed: Fast, Normal, Slow. Default is Normal.
 - Card style: Classic, Modern, Minimal.
 - Legal hint color: Green, Blue, Gold, Purple, Red. Default is Gold.
 - Show legal move hints: default true.
