@@ -27,7 +27,7 @@ permission.
 - Easy, Normal, and Hard AI difficulty.
 - Custom drawn card UI.
 - Bundled local card image assets from `poker-box-qr.zip`.
-- Android launcher icon generated from `icon.png`.
+- Android launcher icon generated from `new.png`.
 - Drag cards from your hand to the table to attack, defend, add matching ranks, or transfer.
 - Contextual actions for `Done`, `Take`, and `Pass`.
 - Local settings for animation speed, card style, hints, and confirmations.
@@ -49,7 +49,7 @@ Card faces and backs are bundled under `app/src/main/assets/cards/` and are
 loaded locally at runtime. They were generated from the SVG files in
 `poker-box-qr.zip`.
 
-Launcher icon resources are generated from the root `icon.png` file.
+Launcher icon resources are generated from the root `new.png` file.
 
 ## Build From Source
 
