@@ -143,7 +143,7 @@ class GameViewModel(
 
     fun passHint() {
         val cards = getLegalPassCardsForHuman()
-        if (cards.isEmpty()) show("Pass is not legal now.") else show("Drag a matching rank to pass.")
+        if (cards.isEmpty()) show("Transfer is not legal now.") else show("Drag a matching-rank card to the table to transfer.")
     }
 
     fun invalidDrop(card: Card) {
@@ -168,13 +168,22 @@ class GameViewModel(
         if (aiThinking) return "AI is thinking..."
         return when (state.phase) {
             GamePhase.DEALING -> "Dealing cards..."
-            GamePhase.HUMAN_ATTACK -> "Your attack. Drag a card to the table."
+            GamePhase.HUMAN_ATTACK -> when (state.settings.gameMode) {
+                GameMode.CLASSIC -> "Your attack. Play one card."
+                GameMode.TRANSFER, GameMode.CASUAL -> "Your attack. Play a card."
+            }
             GamePhase.HUMAN_DEFENSE -> {
-                if (getLegalPassCardsForHuman().isNotEmpty()) "You can pass or defend."
-                else "Your defense. Drag a card that beats the attack."
+                when (state.settings.gameMode) {
+                    GameMode.CLASSIC -> "Your defense. Beat the card or take."
+                    GameMode.TRANSFER -> "Your defense. Beat all cards or take."
+                    GameMode.CASUAL -> "Your defense. Defend, pass with matching rank, or take."
+                }
             }
             GamePhase.HUMAN_PASS_OR_DEFEND -> "Your defense. Defend, pass with matching rank, or take."
-            GamePhase.HUMAN_THROW_IN -> "Choose a card to throw in, or tap Done."
+            GamePhase.HUMAN_THROW_IN -> when (state.settings.gameMode) {
+                GameMode.CASUAL -> "Add a matching-rank card, or tap Done."
+                else -> "Choose a matching-rank card to add, or tap Done."
+            }
             GamePhase.AI_ATTACK, GamePhase.AI_DEFENSE, GamePhase.AI_THROW_IN, GamePhase.AI_PASS_OR_DEFEND -> "AI is thinking..."
             GamePhase.ROUND_RESOLUTION -> "Resolving the round..."
             GamePhase.GAME_OVER -> "Game over"
@@ -214,8 +223,10 @@ class GameViewModel(
             is AiMove.Play -> {
                 val verb = when {
                     fallback.contains("passed", ignoreCase = true) -> "passes"
+                    fallback.contains("transferred", ignoreCase = true) -> "transfers"
                     fallback.contains("defended", ignoreCase = true) -> "defends"
-                    fallback.contains("threw in", ignoreCase = true) -> "throws in"
+                    fallback.contains("added", ignoreCase = true) -> "adds"
+                    fallback.contains("threw in", ignoreCase = true) -> "adds"
                     else -> "attacks"
                 }
                 "AI $actor $verb with ${move.card}"

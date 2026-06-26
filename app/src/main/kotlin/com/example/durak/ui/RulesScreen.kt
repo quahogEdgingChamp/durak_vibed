@@ -15,12 +15,11 @@ import com.example.durak.viewmodel.Screen
 fun RulesScreen(viewModel: GameViewModel) {
     MenuPanel {
         Text("Rules", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        RuleText("Classic: the attacker plays one card. The defender must beat it. If every attack is defended, the defender becomes the next attacker.")
-        RuleText("Throw-in: after a defense, the attacker may add cards whose ranks already appear on the table. The attack cannot exceed the defender's available cards.")
-        RuleText("Passing: the defender may pass the attack by dragging a matching-rank card to the table, if the next defender has enough cards.")
-        RuleText("Casual: relaxed play that allows more forgiving throw-ins and passing.")
+        RuleText("Classic: the attacker plays exactly one card. The defender beats that card or takes. No matching-rank adds and no passing.")
+        RuleText("Transfer: after all current attacks are beaten, the attacker may add only matching-rank cards. The total attack count cannot exceed the defender's hand size at the start of the bout. No passing.")
+        RuleText("Casual: matching-rank adds are allowed, and the defender may pass with a matching-rank card if the next defender has enough cards. Passing adds a new attack card; it is not a defense.")
         RuleText("Decks: 24 cards use 9 through A, 36 cards use 6 through A, and 52 cards use 2 through A.")
-        RuleText("In this app: drag highlighted cards from your hand to the table. Use Done to finish a defended attack, Take to pick up, and Pass when it is available.")
+        RuleText("In this app: drag highlighted cards from your hand to the table. Drop onto an attack card or slot to defend. In Casual, drop a matching-rank card on the general table to pass. Use Done to finish a defended Transfer or Casual bout, and Take to pick up.")
         Button(onClick = { viewModel.goTo(Screen.MENU) }, modifier = Modifier.fillMaxWidth()) { Text("Back") }
     }
 }

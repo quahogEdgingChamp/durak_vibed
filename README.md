@@ -21,13 +21,12 @@ permission.
 
 - Single-player Durak against AI.
 - 24-card, 36-card, and 52-card decks.
-- Classic Durak.
-- Throw-in Durak / Podkidnoy.
-- Passing Durak / Perevodnoy.
-- Casual mode.
+- Classic mode: one attack card, then defend or take.
+- Transfer mode: add matching-rank cards after defense.
+- Casual mode: matching-rank adds plus passing/transfer.
 - Easy, Normal, and Hard AI difficulty.
 - Custom drawn card UI.
-- Drag cards from your hand to the table to attack, defend, throw in, or pass.
+- Drag cards from your hand to the table to attack, defend, add matching ranks, or pass in Casual.
 - Contextual actions for `Done`, `Take`, and `Pass`.
 - Local settings for animation speed, card style, hints, and confirmations.
 

@@ -20,7 +20,7 @@ data class GameState(
     val discardPile: List<Card> = emptyList(),
     val attackerIndex: Int,
     val defenderIndex: Int,
-    val boutDefenderCardLimit: Int = players.getOrNull(defenderIndex)?.hand?.size ?: 0,
+    val defenderHandSizeAtBoutStart: Int = players.getOrNull(defenderIndex)?.hand?.size ?: 0,
     val phase: GamePhase = GamePhase.DEALING,
     val status: GameStatus = GameStatus.IN_PROGRESS,
     val loserIndex: Int? = null,

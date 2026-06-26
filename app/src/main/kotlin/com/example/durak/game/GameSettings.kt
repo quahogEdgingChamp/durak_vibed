@@ -8,7 +8,7 @@ enum class AiDifficulty(val title: String) {
 
 data class GameSettings(
     val deckMode: DeckMode = DeckMode.CARDS_36,
-    val gameMode: GameMode = GameMode.THROW_IN,
+    val gameMode: GameMode = GameMode.TRANSFER,
     val playerCount: Int = 2,
     val aiDifficulty: AiDifficulty = AiDifficulty.NORMAL
 )

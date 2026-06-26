@@ -37,7 +37,7 @@ class SettingsRepository(context: Context) : SettingsDataSource {
 
     override fun loadGameSettings(): GameSettings = GameSettings(
         deckMode = prefs.getString("deckMode", null).enumValueOrNull<DeckMode>() ?: DeckMode.CARDS_36,
-        gameMode = prefs.getString("gameMode", null).enumValueOrNull<GameMode>() ?: GameMode.THROW_IN,
+        gameMode = prefs.getString("gameMode", null).toGameModeOrDefault(),
         playerCount = prefs.getInt("playerCount", 2).coerceIn(2, 4),
         aiDifficulty = prefs.getString("aiDifficulty", null).enumValueOrNull<AiDifficulty>() ?: AiDifficulty.NORMAL
     )
@@ -70,3 +70,11 @@ class SettingsRepository(context: Context) : SettingsDataSource {
 
 private inline fun <reified T : Enum<T>> String?.enumValueOrNull(): T? =
     this?.let { value -> enumValues<T>().firstOrNull { it.name == value } }
+
+private fun String?.toGameModeOrDefault(): GameMode =
+    when (this) {
+        "CLASSIC" -> GameMode.CLASSIC
+        "TRANSFER", "THROW_IN" -> GameMode.TRANSFER
+        "CASUAL", "PASSING" -> GameMode.CASUAL
+        else -> GameMode.TRANSFER
+    }

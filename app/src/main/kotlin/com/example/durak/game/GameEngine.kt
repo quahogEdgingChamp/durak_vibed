@@ -40,7 +40,7 @@ class GameEngine(private val rules: GameRules = GameRules()) {
             trumpSuit = trumpCard.suit,
             attackerIndex = attacker,
             defenderIndex = defender,
-            boutDefenderCardLimit = players[defender].hand.size,
+            defenderHandSizeAtBoutStart = players[defender].hand.size,
             message = "Player ${attacker + 1} starts with the lowest trump."
         ))
     }
@@ -57,19 +57,19 @@ class GameEngine(private val rules: GameRules = GameRules()) {
                 defend(state, playerIndex, target.attackCard, card)
             target is DropTarget.DefenseSlot && rules.canDefend(state, playerIndex, target.attackCard, card) ->
                 defend(state, playerIndex, target.attackCard, card)
-            target is DropTarget.Table && rules.canPass(state, playerIndex, card) -> pass(state, playerIndex, card)
-            target is DropTarget.Table && rules.canThrowIn(state, playerIndex, card) -> throwIn(state, playerIndex, card)
-            target is DropTarget.Table && rules.canAttack(state, playerIndex, card) -> attack(state, playerIndex, card)
-            rules.canAttack(state, playerIndex, card) -> attack(state, playerIndex, card)
-            rules.canThrowIn(state, playerIndex, card) -> throwIn(state, playerIndex, card)
+            target is DropTarget.Table && rules.canTransfer(state, playerIndex, card) -> transfer(state, playerIndex, card)
+            target is DropTarget.Table && rules.canAddSameRankCard(state, playerIndex, card) -> addSameRankCard(state, playerIndex, card)
+            target is DropTarget.Table && rules.canInitialAttack(state, playerIndex, card) -> attack(state, playerIndex, card)
+            rules.canInitialAttack(state, playerIndex, card) -> attack(state, playerIndex, card)
+            rules.canAddSameRankCard(state, playerIndex, card) -> addSameRankCard(state, playerIndex, card)
             rules.canDefend(state, playerIndex, card) -> defend(state, playerIndex, state.table.first { it.defense == null }.attack, card)
             else -> MoveResult(state, "That card is not legal now.")
         }
     }
 
     fun take(state: GameState, playerIndex: Int): MoveResult {
-        if (playerIndex != state.defenderIndex || state.table.isEmpty()) {
-            return MoveResult(state, "Only the defender can take table cards.")
+        if (playerIndex != state.defenderIndex || state.table.isEmpty() || !state.needsDefense) {
+            return MoveResult(state, "Only the defender can take during defense.")
         }
         val tableCards = state.table.flatMap { listOfNotNull(it.attack, it.defense) }
         val players = state.players.replacePlayer(playerIndex) { it.copy(hand = sortHand(it.hand + tableCards, state.trumpSuit)) }
@@ -81,7 +81,7 @@ class GameEngine(private val rules: GameRules = GameRules()) {
                 replenished.copy(
                     attackerIndex = nextAttacker,
                     defenderIndex = nextDefender,
-                    boutDefenderCardLimit = replenished.players.getOrNull(nextDefender)?.hand?.size ?: 0,
+                    defenderHandSizeAtBoutStart = replenished.players.getOrNull(nextDefender)?.hand?.size ?: 0,
                     message = "Defender took ${tableCards.size} cards."
                 )
             )),
@@ -93,6 +93,10 @@ class GameEngine(private val rules: GameRules = GameRules()) {
         if (!rules.canEndAttack(state, playerIndex)) {
             return MoveResult(state, "You can end only after all attacks are defended.")
         }
+        return finishSuccessfulDefense(state, "Attack ended.")
+    }
+
+    private fun finishSuccessfulDefense(state: GameState, message: String): MoveResult {
         val discarded = state.table.flatMap { listOfNotNull(it.attack, it.defense) }
         val replenished = drawAfterBattle(
             state.copy(
@@ -111,21 +115,21 @@ class GameEngine(private val rules: GameRules = GameRules()) {
                 replenished.copy(
                     attackerIndex = nextAttacker,
                     defenderIndex = nextDefender,
-                    boutDefenderCardLimit = replenished.players.getOrNull(nextDefender)?.hand?.size ?: 0,
-                    message = "Attack ended."
+                    defenderHandSizeAtBoutStart = replenished.players.getOrNull(nextDefender)?.hand?.size ?: 0,
+                    message = message
                 )
             )),
-            "Attack ended."
+            message
         )
     }
 
     fun legalCards(state: GameState, playerIndex: Int): Set<Card> = rules.legalCards(state, playerIndex)
-    fun legalPassCards(state: GameState, playerIndex: Int): Set<Card> = rules.getLegalPassCards(state, playerIndex).toSet()
+    fun legalPassCards(state: GameState, playerIndex: Int): Set<Card> = rules.getLegalTransferCards(state, playerIndex).toSet()
     fun legalDefenseCards(state: GameState, playerIndex: Int, attackCard: Card): Set<Card> = rules.getLegalDefenseCards(state, playerIndex, attackCard).toSet()
-    fun legalThrowInCards(state: GameState, playerIndex: Int): Set<Card> = rules.getLegalThrowInCards(state, playerIndex).toSet()
+    fun legalThrowInCards(state: GameState, playerIndex: Int): Set<Card> = rules.getLegalSameRankAddCards(state, playerIndex).toSet()
     fun availableActions(state: GameState, playerIndex: Int): Set<GameAction> = rules.getAvailableActions(state, playerIndex)
     fun canEndAttack(state: GameState, playerIndex: Int): Boolean = rules.canEndAttack(state, playerIndex)
-    fun canAnyPass(state: GameState, playerIndex: Int): Boolean = rules.canAnyPass(state, playerIndex)
+    fun canAnyPass(state: GameState, playerIndex: Int): Boolean = rules.canAnyTransfer(state, playerIndex)
 
     private fun attack(state: GameState, playerIndex: Int, card: Card): MoveResult {
         val players = state.players.removeCard(playerIndex, card, state.trumpSuit)
@@ -134,6 +138,7 @@ class GameEngine(private val rules: GameRules = GameRules()) {
                 state.copy(
                     players = players,
                     table = state.table + TableCard(card),
+                    defenderHandSizeAtBoutStart = state.players[state.defenderIndex].hand.size,
                     message = "${state.players[playerIndex].name} attacked with $card."
                 )
             )),
@@ -141,17 +146,17 @@ class GameEngine(private val rules: GameRules = GameRules()) {
         )
     }
 
-    private fun throwIn(state: GameState, playerIndex: Int, card: Card): MoveResult {
+    private fun addSameRankCard(state: GameState, playerIndex: Int, card: Card): MoveResult {
         val players = state.players.removeCard(playerIndex, card, state.trumpSuit)
         return MoveResult(
             withPhase(finishIfNeeded(
                 state.copy(
                     players = players,
                     table = state.table + TableCard(card),
-                    message = "${state.players[playerIndex].name} threw in $card."
+                    message = "${state.players[playerIndex].name} added $card."
                 )
             )),
-            "Throw-in played."
+            "Matching-rank card added."
         )
     }
 
@@ -161,20 +166,19 @@ class GameEngine(private val rules: GameRules = GameRules()) {
         val table = state.table.toMutableList()
         table[firstOpen] = table[firstOpen].copy(defense = card)
         val players = state.players.removeCard(playerIndex, card, state.trumpSuit)
-        return MoveResult(
-            withPhase(finishIfNeeded(
-                state.copy(
-                    players = players,
-                    table = table,
-                    message = "${state.players[playerIndex].name} defended with $card."
-                )
-            )),
-            "Defense played."
+        val defended = state.copy(
+            players = players,
+            table = table,
+            message = "${state.players[playerIndex].name} defended with $card."
         )
+        if (state.settings.gameMode == GameMode.CLASSIC && defended.table.none { it.defense == null }) {
+            return finishSuccessfulDefense(defended, "Defense succeeded.")
+        }
+        return MoveResult(withPhase(finishIfNeeded(defended)), "Defense played.")
     }
 
-    private fun pass(state: GameState, playerIndex: Int, card: Card): MoveResult {
-        val nextDefender = rules.nextActiveIndex(state, state.defenderIndex) ?: return MoveResult(state, "No player to pass to.")
+    private fun transfer(state: GameState, playerIndex: Int, card: Card): MoveResult {
+        val nextDefender = rules.nextActiveIndex(state, state.defenderIndex) ?: return MoveResult(state, "No player to transfer to.")
         val players = state.players.removeCard(playerIndex, card, state.trumpSuit)
         return MoveResult(
             withPhase(finishIfNeeded(
@@ -182,11 +186,11 @@ class GameEngine(private val rules: GameRules = GameRules()) {
                     players = players,
                     table = state.table + TableCard(card),
                     defenderIndex = nextDefender,
-                    boutDefenderCardLimit = state.players[nextDefender].hand.size,
-                    message = "${state.players[playerIndex].name} passed with $card."
+                    defenderHandSizeAtBoutStart = state.players[nextDefender].hand.size,
+                    message = "${state.players[playerIndex].name} transferred with $card."
                 )
             )),
-            "Attack passed."
+            "Attack transferred."
         )
     }
 
@@ -196,9 +200,10 @@ class GameEngine(private val rules: GameRules = GameRules()) {
         val drawOrder = buildList {
             var index = state.attackerIndex
             repeat(players.size) {
-                add(index)
+                if (index != state.defenderIndex) add(index)
                 index = (index + 1) % players.size
             }
+            if (state.defenderIndex !in this) add(state.defenderIndex)
         }
 
         for (index in drawOrder) {

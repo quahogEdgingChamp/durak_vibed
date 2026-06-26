@@ -44,6 +44,12 @@ fun NewGameScreen(viewModel: GameViewModel) {
         OptionGroup("Mode", GameMode.entries, settings.gameMode, { it.title }) {
             viewModel.updateGameOptions(settings.copy(gameMode = it))
         }
+        Text(
+            modeDescription(settings.gameMode),
+            color = Color(0xFF4B5C4F),
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth()
+        )
         OptionGroup("Players", listOf(2, 3, 4), settings.playerCount, { it.toString() }) {
             viewModel.updateGameOptions(settings.copy(playerCount = it))
         }
@@ -113,3 +119,10 @@ fun ScreenTitle(text: String) {
         )
     )
 }
+
+private fun modeDescription(mode: GameMode): String =
+    when (mode) {
+        GameMode.CLASSIC -> "One attack, defend or take."
+        GameMode.TRANSFER -> "Add matching ranks after defense."
+        GameMode.CASUAL -> "Matching ranks plus passing."
+    }

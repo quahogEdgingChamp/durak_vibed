@@ -43,7 +43,7 @@ class AIPlayer(
 
     private fun chooseHardMove(state: GameState, playerIndex: Int): AiMove {
         if (state.needsDefense && playerIndex == state.defenderIndex) {
-            val pass = rules.getLegalPassCards(state, playerIndex)
+            val pass = rules.getLegalTransferCards(state, playerIndex)
                 .maxByOrNull { evaluator.scorePassMove(state, playerIndex, it) }
             if (pass != null && evaluator.scorePassMove(state, playerIndex, pass) > 18) return AiMove.Play(pass)
             if (evaluator.shouldTakeInsteadOfDefend(state, playerIndex)) return AiMove.Take
@@ -66,7 +66,7 @@ class AIPlayer(
     }
 
     private fun normalPass(state: GameState, playerIndex: Int): Card? {
-        val passCards = rules.getLegalPassCards(state, playerIndex)
+        val passCards = rules.getLegalTransferCards(state, playerIndex)
         if (passCards.isEmpty()) return null
         val firstDefense = firstOpenAttack(state)?.let { rules.getLegalDefenseCards(state, playerIndex, it) }.orEmpty()
         val cheapestDefense = firstDefense.minByOrNull { evaluator.cardDefenseCost(it, state.trumpSuit) }
@@ -83,9 +83,9 @@ class AIPlayer(
 
     private fun attackLikeCards(state: GameState, playerIndex: Int): List<Card> =
         if (state.table.isEmpty()) {
-            rules.getLegalAttackCards(state, playerIndex)
+            rules.getLegalInitialAttackCards(state, playerIndex)
         } else {
-            rules.getLegalThrowInCards(state, playerIndex)
+            rules.getLegalSameRankAddCards(state, playerIndex)
         }
 
     private fun firstOpenAttack(state: GameState): Card? =
