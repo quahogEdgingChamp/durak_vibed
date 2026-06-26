@@ -58,10 +58,10 @@ class GameEngine(private val rules: GameRules = GameRules()) {
             target is DropTarget.DefenseSlot && rules.canDefend(state, playerIndex, target.attackCard, card) ->
                 defend(state, playerIndex, target.attackCard, card)
             target is DropTarget.Table && rules.canTransfer(state, playerIndex, card) -> transfer(state, playerIndex, card)
-            target is DropTarget.Table && rules.canAddSameRankCard(state, playerIndex, card) -> addSameRankCard(state, playerIndex, card)
+            target is DropTarget.Table && rules.canAddMatchingRankCard(state, playerIndex, card) -> addMatchingRankCard(state, playerIndex, card)
             target is DropTarget.Table && rules.canInitialAttack(state, playerIndex, card) -> attack(state, playerIndex, card)
             rules.canInitialAttack(state, playerIndex, card) -> attack(state, playerIndex, card)
-            rules.canAddSameRankCard(state, playerIndex, card) -> addSameRankCard(state, playerIndex, card)
+            rules.canAddMatchingRankCard(state, playerIndex, card) -> addMatchingRankCard(state, playerIndex, card)
             rules.canDefend(state, playerIndex, card) -> defend(state, playerIndex, state.table.first { it.defense == null }.attack, card)
             else -> MoveResult(state, "That card is not legal now.")
         }
@@ -126,7 +126,7 @@ class GameEngine(private val rules: GameRules = GameRules()) {
     fun legalCards(state: GameState, playerIndex: Int): Set<Card> = rules.legalCards(state, playerIndex)
     fun legalPassCards(state: GameState, playerIndex: Int): Set<Card> = rules.getLegalTransferCards(state, playerIndex).toSet()
     fun legalDefenseCards(state: GameState, playerIndex: Int, attackCard: Card): Set<Card> = rules.getLegalDefenseCards(state, playerIndex, attackCard).toSet()
-    fun legalThrowInCards(state: GameState, playerIndex: Int): Set<Card> = rules.getLegalSameRankAddCards(state, playerIndex).toSet()
+    fun legalThrowInCards(state: GameState, playerIndex: Int): Set<Card> = rules.getLegalAddCards(state, playerIndex).toSet()
     fun availableActions(state: GameState, playerIndex: Int): Set<GameAction> = rules.getAvailableActions(state, playerIndex)
     fun canEndAttack(state: GameState, playerIndex: Int): Boolean = rules.canEndAttack(state, playerIndex)
     fun canAnyPass(state: GameState, playerIndex: Int): Boolean = rules.canAnyTransfer(state, playerIndex)
@@ -146,7 +146,7 @@ class GameEngine(private val rules: GameRules = GameRules()) {
         )
     }
 
-    private fun addSameRankCard(state: GameState, playerIndex: Int, card: Card): MoveResult {
+    private fun addMatchingRankCard(state: GameState, playerIndex: Int, card: Card): MoveResult {
         val players = state.players.removeCard(playerIndex, card, state.trumpSuit)
         return MoveResult(
             withPhase(finishIfNeeded(
@@ -171,7 +171,7 @@ class GameEngine(private val rules: GameRules = GameRules()) {
             table = table,
             message = "${state.players[playerIndex].name} defended with $card."
         )
-        if (state.settings.gameMode == GameMode.CLASSIC && defended.table.none { it.defense == null }) {
+        if (state.settings.gameMode == GameMode.TRANSFER && defended.table.none { it.defense == null }) {
             return finishSuccessfulDefense(defended, "Defense succeeded.")
         }
         return MoveResult(withPhase(finishIfNeeded(defended)), "Defense played.")

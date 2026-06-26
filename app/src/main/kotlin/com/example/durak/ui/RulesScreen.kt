@@ -15,11 +15,12 @@ import com.example.durak.viewmodel.Screen
 fun RulesScreen(viewModel: GameViewModel) {
     MenuPanel {
         Text("Rules", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        RuleText("Classic: the attacker plays exactly one card. The defender beats that card or takes. No matching-rank adds and no passing.")
-        RuleText("Transfer: after all current attacks are beaten, the attacker may add only matching-rank cards. The total attack count cannot exceed the defender's hand size at the start of the bout. No passing.")
-        RuleText("Casual: matching-rank adds are allowed, and the defender may pass with a matching-rank card if the next defender has enough cards. Passing adds a new attack card; it is not a defense.")
+        RuleText("Classic: matching-rank throw-ins are allowed. After every attack card is beaten, the attacker may add another card matching any visible table rank. Transfers are not allowed.")
+        RuleText("Transfer: transfers are allowed. The defender may transfer with a same-rank attack card, making the next player the defender. Throw-ins are not allowed.")
+        RuleText("Casual: both systems are allowed. Players may add matching-rank cards after defense, and defenders may transfer with a matching-rank attack card.")
+        RuleText("Attack limit: each bout allows at most min(5, defender hand size at bout start) attack cards.")
         RuleText("Decks: 24 cards use 9 through A, 36 cards use 6 through A, and 52 cards use 2 through A.")
-        RuleText("In this app: drag highlighted cards from your hand to the table. Drop onto an attack card or slot to defend. In Casual, drop a matching-rank card on the general table to pass. Use Done to finish a defended Transfer or Casual bout, and Take to pick up.")
+        RuleText("In this app: drag highlighted cards from your hand to the table. Drop onto an attack card or slot to defend. In Transfer and Casual, drop a matching-rank card on the general table to transfer. Use Done to stop adding cards in Classic and Casual, and Take to pick up.")
         Button(onClick = { viewModel.goTo(Screen.MENU) }, modifier = Modifier.fillMaxWidth()) { Text("Back") }
     }
 }

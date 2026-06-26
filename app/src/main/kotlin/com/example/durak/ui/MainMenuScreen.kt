@@ -48,7 +48,6 @@ fun MainMenuScreen(viewModel: GameViewModel) {
             GameLogo()
             GamePanel {
                 MenuButton("New Game", onClick = { viewModel.goTo(Screen.NEW_GAME) }, primary = true)
-                MenuButton("Continue Game", onClick = viewModel::continueGame, enabled = viewModel.hasSavedGame)
                 MenuButton("Rules", onClick = { viewModel.goTo(Screen.RULES) })
                 MenuButton("Settings", onClick = { viewModel.goTo(Screen.SETTINGS) })
             }

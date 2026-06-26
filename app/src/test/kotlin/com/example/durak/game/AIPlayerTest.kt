@@ -1,6 +1,7 @@
 package com.example.durak.game
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -43,7 +44,7 @@ class AIPlayerTest {
 
     @Test
     fun hardAiPreservesTrumpWhenNonTrumpDefenseAvailable() {
-        val state = defenseState(AiDifficulty.HARD, GameMode.TRANSFER)
+        val state = defenseState(AiDifficulty.HARD, GameMode.CLASSIC)
         val move = AIPlayer().chooseMove(state, 1)
         assertEquals(AiMove.Play(Card(Suit.CLUBS, Rank.JACK)), move)
     }
@@ -64,42 +65,52 @@ class AIPlayerTest {
     }
 
     @Test
-    fun classicAiNeverAddsOrTransfers() {
-        val state = defenseState(AiDifficulty.HARD, GameMode.CLASSIC)
-        val move = AIPlayer().chooseMove(state, 1)
+    fun classicAiNeverTransfersButCanAddMatchingRankCards() {
+        val defense = transferDefenseWithSameRank(AiDifficulty.HARD).copy(
+            settings = GameSettings(gameMode = GameMode.CLASSIC, aiDifficulty = AiDifficulty.HARD, playerCount = 3)
+        )
+        val defenseMove = AIPlayer().chooseMove(defense, 1)
+        assertFalse(defenseMove == AiMove.Play(Card(Suit.SPADES, Rank.TEN)))
+        assertTrue(rules.getLegalTransferCards(defense, 1).isEmpty())
+        assertLegalMove(defense, 1, defenseMove)
 
-        assertTrue(move != AiMove.Play(Card(Suit.SPADES, Rank.TEN)))
-        assertLegalMove(state, 1, move)
-        assertTrue(rules.getLegalSameRankAddCards(state, 1).isEmpty())
-        assertTrue(rules.getLegalTransferCards(state, 1).isEmpty())
+        val addState = defendedAddState(GameMode.CLASSIC, AiDifficulty.HARD, limit = 5)
+        val addMove = AIPlayer().chooseMove(addState, 0)
+        assertTrue(addMove is AiMove.Play)
+        if (addMove is AiMove.Play) assertTrue(rules.canAddMatchingRankCard(addState, 0, addMove.card))
     }
 
     @Test
-    fun transferAiOnlyAddsMatchingRanksAndNeverTransfers() {
-        val state = defendedTransferState(AiDifficulty.HARD, limit = 2)
-        val move = AIPlayer().chooseMove(state, 0)
-        assertTrue(move is AiMove.Play)
-        if (move is AiMove.Play) assertEquals(Rank.TEN, move.card.rank)
-
-        val atLimit = state.copy(table = state.table + TableCard(Card(Suit.DIAMONDS, Rank.TEN), Card(Suit.DIAMONDS, Rank.JACK)))
-        assertEquals(AiMove.Done, AIPlayer().chooseMove(atLimit, 0))
+    fun transferAiCanTransferButNeverThrowsIn() {
+        val addState = defendedAddState(GameMode.TRANSFER, AiDifficulty.HARD, limit = 5)
+        val addMove = AIPlayer().chooseMove(addState, 0)
+        assertEquals(AiMove.Done, addMove)
+        assertTrue(rules.getLegalAddCards(addState, 0).isEmpty())
 
         val defense = transferDefenseWithSameRank(AiDifficulty.HARD)
         val defenseMove = AIPlayer().chooseMove(defense, 1)
-        assertTrue(defenseMove != AiMove.Play(Card(Suit.SPADES, Rank.TEN)))
+        assertEquals(AiMove.Play(Card(Suit.SPADES, Rank.TEN)), defenseMove)
         assertLegalMove(defense, 1, defenseMove)
     }
 
     @Test
-    fun casualAiPassesOnlyWhenLegal() {
-        val legal = casualTransferDefenseState(AiDifficulty.HARD, nextDefenderCards = 3)
-        val legalMove = AIPlayer().chooseMove(legal, 1)
-        assertEquals(AiMove.Play(Card(Suit.SPADES, Rank.TEN)), legalMove)
-        assertLegalMove(legal, 1, legalMove)
+    fun casualAiCanTransferAndThrowInLegally() {
+        val transferState = casualTransferDefenseState(AiDifficulty.HARD, nextDefenderCards = 3)
+        val transferMove = AIPlayer().chooseMove(transferState, 1)
+        assertEquals(AiMove.Play(Card(Suit.SPADES, Rank.TEN)), transferMove)
+        assertLegalMove(transferState, 1, transferMove)
 
+        val addState = defendedAddState(GameMode.CASUAL, AiDifficulty.HARD, limit = 5)
+        val addMove = AIPlayer().chooseMove(addState, 0)
+        assertTrue(addMove is AiMove.Play)
+        if (addMove is AiMove.Play) assertTrue(rules.canAddMatchingRankCard(addState, 0, addMove.card))
+    }
+
+    @Test
+    fun casualAiDoesNotTransferIllegally() {
         val illegal = casualTransferDefenseState(AiDifficulty.HARD, nextDefenderCards = 1)
         val illegalMove = AIPlayer().chooseMove(illegal, 1)
-        assertTrue(illegalMove != AiMove.Play(Card(Suit.SPADES, Rank.TEN)))
+        assertFalse(illegalMove == AiMove.Play(Card(Suit.SPADES, Rank.TEN)))
         assertLegalMove(illegal, 1, illegalMove)
     }
 
@@ -114,7 +125,7 @@ class AIPlayerTest {
     private fun attackState(difficulty: AiDifficulty, defenderCards: Int): GameState {
         val trump = Card(Suit.HEARTS, Rank.SIX)
         return GameState(
-            settings = GameSettings(gameMode = GameMode.TRANSFER, aiDifficulty = difficulty, playerCount = 2),
+            settings = GameSettings(gameMode = GameMode.CLASSIC, aiDifficulty = difficulty, playerCount = 2),
             players = listOf(
                 Player(0, "AI 0", false, listOf(Card(Suit.CLUBS, Rank.SIX), Card(Suit.SPADES, Rank.ACE), Card(Suit.HEARTS, Rank.SEVEN))),
                 Player(1, "You", true, List(defenderCards) { Card(Suit.DIAMONDS, Rank.entries[it + 2]) })
@@ -188,10 +199,10 @@ class AIPlayerTest {
         )
     }
 
-    private fun defendedTransferState(difficulty: AiDifficulty, limit: Int): GameState {
+    private fun defendedAddState(mode: GameMode, difficulty: AiDifficulty, limit: Int): GameState {
         val trump = Card(Suit.HEARTS, Rank.SIX)
         return GameState(
-            settings = GameSettings(gameMode = GameMode.TRANSFER, aiDifficulty = difficulty, playerCount = 2),
+            settings = GameSettings(gameMode = mode, aiDifficulty = difficulty, playerCount = 2),
             players = listOf(
                 Player(0, "AI 0", false, listOf(Card(Suit.CLUBS, Rank.TEN), Card(Suit.SPADES, Rank.ACE))),
                 Player(1, "You", true, List(limit) { Card(Suit.DIAMONDS, Rank.entries[it + 2]) })

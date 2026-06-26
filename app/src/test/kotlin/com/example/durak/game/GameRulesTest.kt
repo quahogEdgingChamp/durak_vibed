@@ -27,84 +27,43 @@ class GameRulesTest {
     }
 
     @Test
-    fun classicAllowsDefenseButNoSameRankAddOrTransfer() {
-        val attack = Card(Suit.SPADES, Rank.NINE)
-        val sameRank = Card(Suit.HEARTS, Rank.NINE)
-        val state = defenseState(GameMode.CLASSIC, attack = attack)
+    fun classicAllowsMatchingRankAddsButNoTransfer() {
+        val defended = defendedState(GameMode.CLASSIC)
+        val defense = defenseState(GameMode.CLASSIC, Card(Suit.SPADES, Rank.NINE))
 
-        assertFalse(rules.canAddSameRankCard(defendedState(GameMode.CLASSIC), 0, sameRank))
-        assertFalse(rules.canTransfer(state, 1, sameRank))
-        assertTrue(rules.canDefend(state, 1, attack, Card(Suit.SPADES, Rank.QUEEN)))
-        assertTrue(rules.canDefend(state, 1, attack, Card(Suit.DIAMONDS, Rank.SIX)))
-        assertFalse(rules.canDefend(state, 1, attack, Card(Suit.SPADES, Rank.EIGHT)))
-        assertFalse(rules.canDefend(state, 1, attack, Card(Suit.CLUBS, Rank.ACE)))
+        assertTrue(rules.canAddMatchingRankCard(defended, 0, Card(Suit.HEARTS, Rank.NINE)))
+        assertTrue(rules.canAddMatchingRankCard(defended, 0, Card(Suit.CLUBS, Rank.QUEEN)))
+        assertFalse(rules.canAddMatchingRankCard(defended, 0, Card(Suit.HEARTS, Rank.ACE)))
+        assertFalse(rules.canTransfer(defense, 1, Card(Suit.HEARTS, Rank.NINE)))
+        assertFalse(GameAction.PASS in rules.getAvailableActions(defense, 1))
     }
 
     @Test
-    fun classicDefenseAutoEndsBoutAndDoesNotExposeDoneOrPass() {
-        val engine = GameEngine()
-        val attack = Card(Suit.SPADES, Rank.NINE)
-        val state = defenseState(GameMode.CLASSIC, attack = attack)
+    fun classicAttackLimitIsMinOfFiveAndDefenderStartHandSize() {
+        val underFive = defendedTable(GameMode.CLASSIC, count = 4, defenderLimit = 6)
+        val atFive = defendedTable(GameMode.CLASSIC, count = 5, defenderLimit = 6)
+        val atSmallDefenderLimit = defendedTable(GameMode.CLASSIC, count = 3, defenderLimit = 3)
 
-        val actions = rules.getAvailableActions(state, 1)
-        assertTrue(GameAction.TAKE in actions)
-        assertFalse(GameAction.DONE in actions)
-        assertFalse(GameAction.PASS in actions)
-
-        val result = engine.playCard(state, 1, Card(Suit.SPADES, Rank.QUEEN), DropTarget.DefenseSlot(attack)).state
-
-        assertTrue(result.table.isEmpty())
-        assertEquals(2, result.discardPile.size)
-        assertEquals(1, result.attackerIndex)
+        assertTrue(rules.canAddMatchingRankCard(underFive, 0, Card(Suit.HEARTS, Rank.NINE)))
+        assertFalse(rules.canAddMatchingRankCard(atFive, 0, Card(Suit.HEARTS, Rank.NINE)))
+        assertFalse(rules.canAddMatchingRankCard(atSmallDefenderLimit, 0, Card(Suit.HEARTS, Rank.NINE)))
     }
 
     @Test
-    fun transferAllowsOnlyMatchingRanksAfterDefense() {
-        val state = defendedState(GameMode.TRANSFER)
+    fun transferAllowsTransferButNoMatchingRankAdds() {
+        val defended = defendedState(GameMode.TRANSFER)
+        val defense = defenseState(GameMode.TRANSFER, Card(Suit.SPADES, Rank.NINE))
 
-        assertTrue(rules.canAddSameRankCard(state, 0, Card(Suit.HEARTS, Rank.NINE)))
-        assertTrue(rules.canAddSameRankCard(state, 0, Card(Suit.CLUBS, Rank.QUEEN)))
-        assertFalse(rules.canAddSameRankCard(state, 0, Card(Suit.HEARTS, Rank.ACE)))
-        assertFalse(rules.canTransfer(defenseState(GameMode.TRANSFER, Card(Suit.SPADES, Rank.NINE)), 1, Card(Suit.HEARTS, Rank.NINE)))
-    }
-
-    @Test
-    fun transferAttackCountCannotExceedDefenderStartHandSize() {
-        val underLimit = defendedTable(GameMode.TRANSFER, count = 5, defenderLimit = 6)
-        val atLimit = defendedTable(GameMode.TRANSFER, count = 6, defenderLimit = 6)
-
-        assertTrue(rules.canAddSameRankCard(underLimit, 0, Card(Suit.HEARTS, Rank.NINE)))
-        assertFalse(rules.canAddSameRankCard(atLimit, 0, Card(Suit.HEARTS, Rank.NINE)))
-    }
-
-    @Test
-    fun transferDoneAvailableAfterAllAttacksAreDefended() {
-        val state = defendedState(GameMode.TRANSFER)
-
-        assertTrue(GameAction.DONE in rules.getAvailableActions(state, 0))
-        assertFalse(GameAction.PASS in rules.getAvailableActions(state, 0))
-    }
-
-    @Test
-    fun casualAllowsSameRankAddAndTransferOnlyWhenLegal() {
-        val defended = defendedState(GameMode.CASUAL)
-        val defense = defenseState(GameMode.CASUAL, Card(Suit.SPADES, Rank.NINE))
-
-        assertTrue(rules.canAddSameRankCard(defended, 0, Card(Suit.HEARTS, Rank.NINE)))
-        assertFalse(rules.canAddSameRankCard(defended, 0, Card(Suit.HEARTS, Rank.ACE)))
+        assertFalse(rules.canAddMatchingRankCard(defended, 0, Card(Suit.HEARTS, Rank.NINE)))
         assertTrue(rules.canTransfer(defense, 1, Card(Suit.HEARTS, Rank.NINE)))
         assertFalse(rules.canTransfer(defense, 1, Card(Suit.HEARTS, Rank.ACE)))
-
-        val nextDefenderShort = defense.copy(
-            players = defense.players.replacePlayerForTest(2) { it.copy(hand = listOf(Card(Suit.CLUBS, Rank.SIX))) }
-        )
-        assertFalse(rules.canTransfer(nextDefenderShort, 1, Card(Suit.HEARTS, Rank.NINE)))
+        assertTrue(GameAction.PASS in rules.getAvailableActions(defense, 1))
     }
 
     @Test
-    fun casualTransferAddsAttackAndChangesDefender() {
+    fun transferChangesDefenderAndAddsAttackCard() {
         val engine = GameEngine()
-        val state = defenseState(GameMode.CASUAL, Card(Suit.SPADES, Rank.NINE))
+        val state = defenseState(GameMode.TRANSFER, Card(Suit.SPADES, Rank.NINE))
 
         val result = engine.playCard(state, 1, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state
 
@@ -116,11 +75,51 @@ class GameRulesTest {
     }
 
     @Test
-    fun legalCardsReturnedForAttackDefenseAddAndTransfer() {
-        assertTrue(Card(Suit.SPADES, Rank.NINE) in rules.legalCards(emptyTableState(GameMode.TRANSFER), 0))
-        assertTrue(Card(Suit.SPADES, Rank.QUEEN) in rules.legalCards(defenseState(GameMode.TRANSFER, Card(Suit.SPADES, Rank.NINE)), 1))
-        assertTrue(Card(Suit.HEARTS, Rank.NINE) in rules.legalCards(defendedState(GameMode.TRANSFER), 0))
-        assertTrue(Card(Suit.HEARTS, Rank.NINE) in rules.legalCards(defenseState(GameMode.CASUAL, Card(Suit.SPADES, Rank.NINE)), 1))
+    fun transferRespectsReceivingDefenderLimitAndFiveCardCap() {
+        val legal = transferState(nextDefenderCards = 3, attackCount = 2)
+        val shortNextDefender = transferState(nextDefenderCards = 2, attackCount = 2)
+        val atFive = transferState(nextDefenderCards = 6, attackCount = 5)
+
+        assertTrue(rules.canTransfer(legal, 1, Card(Suit.HEARTS, Rank.NINE)))
+        assertFalse(rules.canTransfer(shortNextDefender, 1, Card(Suit.HEARTS, Rank.NINE)))
+        assertFalse(rules.canTransfer(atFive, 1, Card(Suit.HEARTS, Rank.NINE)))
+    }
+
+    @Test
+    fun transferAutoDiscardsAfterSuccessfulDefense() {
+        val engine = GameEngine()
+        val attack = Card(Suit.SPADES, Rank.NINE)
+        val state = defenseState(GameMode.TRANSFER, attack)
+
+        val result = engine.playCard(state, 1, Card(Suit.SPADES, Rank.QUEEN), DropTarget.DefenseSlot(attack)).state
+
+        assertTrue(result.table.isEmpty())
+        assertEquals(2, result.discardPile.size)
+    }
+
+    @Test
+    fun casualAllowsBothMatchingRankAddAndTransfer() {
+        val defended = defendedState(GameMode.CASUAL)
+        val defense = defenseState(GameMode.CASUAL, Card(Suit.SPADES, Rank.NINE))
+
+        assertTrue(rules.canAddMatchingRankCard(defended, 0, Card(Suit.HEARTS, Rank.NINE)))
+        assertTrue(rules.canAddMatchingRankCard(defended, 0, Card(Suit.CLUBS, Rank.QUEEN)))
+        assertFalse(rules.canAddMatchingRankCard(defended, 0, Card(Suit.HEARTS, Rank.ACE)))
+        assertTrue(rules.canTransfer(defense, 1, Card(Suit.HEARTS, Rank.NINE)))
+    }
+
+    @Test
+    fun casualTransferPlusLaterThrowInWorks() {
+        val engine = GameEngine()
+        val attack = Card(Suit.SPADES, Rank.NINE)
+        val state = casualTransferThenAddState(attack)
+
+        val transferred = engine.playCard(state, 1, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state
+        val defendedFirst = engine.playCard(transferred, 2, Card(Suit.SPADES, Rank.JACK), DropTarget.AttackCard(attack)).state
+        val defendedSecond = engine.playCard(defendedFirst, 2, Card(Suit.HEARTS, Rank.JACK), DropTarget.AttackCard(Card(Suit.HEARTS, Rank.NINE))).state
+        val added = engine.playCard(defendedSecond, 0, Card(Suit.CLUBS, Rank.JACK), DropTarget.Table).state
+
+        assertEquals(Card(Suit.CLUBS, Rank.JACK), added.table.last().attack)
     }
 
     @Test
@@ -128,18 +127,18 @@ class GameRulesTest {
         val engine = GameEngine()
         val attack = Card(Suit.SPADES, Rank.NINE)
 
-        val classic = defenseState(GameMode.CLASSIC, attack)
-        assertEquals(classic, engine.playCard(classic, 1, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state)
+        val classicDefense = defenseState(GameMode.CLASSIC, attack)
+        assertEquals(classicDefense, engine.playCard(classicDefense, 1, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state)
+        val classicAdd = engine.playCard(defendedState(GameMode.CLASSIC), 0, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state
+        assertEquals(Card(Suit.HEARTS, Rank.NINE), classicAdd.table.last().attack)
 
         val transferDefense = defenseState(GameMode.TRANSFER, attack)
-        assertEquals(transferDefense, engine.playCard(transferDefense, 1, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state)
-
-        val transferAdd = engine.playCard(defendedState(GameMode.TRANSFER), 0, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state
-        assertEquals(Card(Suit.HEARTS, Rank.NINE), transferAdd.table.last().attack)
+        val transferPass = engine.playCard(transferDefense, 1, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state
+        assertEquals(2, transferPass.defenderIndex)
+        assertEquals(defendedState(GameMode.TRANSFER), engine.playCard(defendedState(GameMode.TRANSFER), 0, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state)
 
         val casualPass = engine.playCard(defenseState(GameMode.CASUAL, attack), 1, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state
         assertEquals(2, casualPass.defenderIndex)
-
         val casualDefend = engine.playCard(defenseState(GameMode.CASUAL, attack), 1, Card(Suit.SPADES, Rank.QUEEN), DropTarget.AttackCard(attack)).state
         assertEquals(Card(Suit.SPADES, Rank.QUEEN), casualDefend.table.first().defense)
     }
@@ -147,7 +146,7 @@ class GameRulesTest {
     @Test
     fun winLossDetectionMarksLastPlayerWithCardsAsLoser() {
         val engine = GameEngine()
-        val state = defendedState(GameMode.TRANSFER).copy(
+        val state = defendedState(GameMode.CLASSIC).copy(
             drawPile = emptyList(),
             players = listOf(
                 Player(0, "You", true, emptyList()),
@@ -188,11 +187,38 @@ class GameRulesTest {
 
     private fun defendedTable(mode: GameMode, count: Int, defenderLimit: Int): GameState =
         emptyTableState(mode).copy(
-            table = List(count) { index ->
-                TableCard(Card(Suit.SPADES, if (index == 0) Rank.NINE else Rank.TEN), Card(Suit.SPADES, Rank.ACE))
+            table = List(count) {
+                TableCard(Card(Suit.SPADES, Rank.NINE), Card(Suit.SPADES, Rank.QUEEN))
             },
             defenderHandSizeAtBoutStart = defenderLimit
         )
+
+    private fun transferState(nextDefenderCards: Int, attackCount: Int): GameState =
+        defenseState(GameMode.TRANSFER, Card(Suit.SPADES, Rank.NINE)).copy(
+            table = List(attackCount) { TableCard(Card(Suit.SPADES, Rank.NINE)) },
+            players = players().replacePlayerForTest(2) {
+                it.copy(hand = List(nextDefenderCards) { index -> Card(Suit.CLUBS, Rank.entries[index + 2]) })
+            }
+        )
+
+    private fun casualTransferThenAddState(attack: Card): GameState {
+        val trump = Card(Suit.DIAMONDS, Rank.SIX)
+        return GameState(
+            settings = GameSettings(deckMode = DeckMode.CARDS_36, gameMode = GameMode.CASUAL, playerCount = 3),
+            players = listOf(
+                Player(0, "You", true, listOf(Card(Suit.CLUBS, Rank.JACK))),
+                Player(1, "AI 1", false, listOf(Card(Suit.HEARTS, Rank.NINE))),
+                Player(2, "AI 2", false, listOf(Card(Suit.SPADES, Rank.JACK), Card(Suit.HEARTS, Rank.JACK), Card(Suit.CLUBS, Rank.SIX)))
+            ),
+            drawPile = listOf(trump),
+            trumpCard = trump,
+            trumpSuit = trump.suit,
+            table = listOf(TableCard(attack)),
+            attackerIndex = 0,
+            defenderIndex = 1,
+            defenderHandSizeAtBoutStart = 1
+        )
+    }
 
     private fun players(): List<Player> = listOf(
         Player(

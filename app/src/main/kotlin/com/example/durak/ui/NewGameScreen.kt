@@ -122,7 +122,7 @@ fun ScreenTitle(text: String) {
 
 private fun modeDescription(mode: GameMode): String =
     when (mode) {
-        GameMode.CLASSIC -> "One attack, defend or take."
-        GameMode.TRANSFER -> "Add matching ranks after defense."
-        GameMode.CASUAL -> "Matching ranks plus passing."
+        GameMode.CLASSIC -> "Matching-rank throw-ins allowed. No transfers."
+        GameMode.TRANSFER -> "Transfers allowed. No throw-ins."
+        GameMode.CASUAL -> "Both transfers and matching-rank throw-ins allowed."
     }

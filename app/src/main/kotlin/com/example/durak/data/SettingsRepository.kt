@@ -74,7 +74,8 @@ private inline fun <reified T : Enum<T>> String?.enumValueOrNull(): T? =
 private fun String?.toGameModeOrDefault(): GameMode =
     when (this) {
         "CLASSIC" -> GameMode.CLASSIC
-        "TRANSFER", "THROW_IN" -> GameMode.TRANSFER
-        "CASUAL", "PASSING" -> GameMode.CASUAL
+        "TRANSFER", "PASSING" -> GameMode.TRANSFER
+        "CASUAL" -> GameMode.CASUAL
+        "THROW_IN" -> GameMode.CLASSIC
         else -> GameMode.TRANSFER
     }

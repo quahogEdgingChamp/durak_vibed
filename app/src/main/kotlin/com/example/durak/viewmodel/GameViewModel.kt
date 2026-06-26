@@ -50,8 +50,6 @@ class GameViewModel(
         private set
     var aiThinking by mutableStateOf(false)
         private set
-    var hasSavedGame by mutableStateOf(savedGameRepository.hasSavedGame())
-        private set
 
     private var aiJob: Job? = null
 
@@ -72,7 +70,6 @@ class GameViewModel(
     fun startGame() {
         settingsRepository.saveGameSettings(gameOptions)
         savedGameRepository.clear()
-        hasSavedGame = false
         gameState = engine.newGame(gameOptions)
         latestEvent = gameState?.message.orEmpty()
         screen = Screen.GAME
@@ -81,19 +78,6 @@ class GameViewModel(
 
     fun restartGame() {
         startGame()
-    }
-
-    fun continueGame() {
-        val saved = savedGameRepository.load()
-        if (saved == null) {
-            show("No saved game yet.")
-            hasSavedGame = false
-            return
-        }
-        gameState = saved
-        latestEvent = saved.message
-        screen = Screen.GAME
-        scheduleAiTurns()
     }
 
     fun playAgain() {
@@ -169,21 +153,16 @@ class GameViewModel(
         return when (state.phase) {
             GamePhase.DEALING -> "Dealing cards..."
             GamePhase.HUMAN_ATTACK -> when (state.settings.gameMode) {
-                GameMode.CLASSIC -> "Your attack. Play one card."
-                GameMode.TRANSFER, GameMode.CASUAL -> "Your attack. Play a card."
+                GameMode.CLASSIC, GameMode.TRANSFER, GameMode.CASUAL -> "Your attack. Play a card."
             }
             GamePhase.HUMAN_DEFENSE -> {
                 when (state.settings.gameMode) {
-                    GameMode.CLASSIC -> "Your defense. Beat the card or take."
-                    GameMode.TRANSFER -> "Your defense. Beat all cards or take."
-                    GameMode.CASUAL -> "Your defense. Defend, pass with matching rank, or take."
+                    GameMode.CLASSIC -> "Your defense. Beat the cards or take."
+                    GameMode.TRANSFER, GameMode.CASUAL -> "Your defense. Defend, transfer with matching rank, or take."
                 }
             }
-            GamePhase.HUMAN_PASS_OR_DEFEND -> "Your defense. Defend, pass with matching rank, or take."
-            GamePhase.HUMAN_THROW_IN -> when (state.settings.gameMode) {
-                GameMode.CASUAL -> "Add a matching-rank card, or tap Done."
-                else -> "Choose a matching-rank card to add, or tap Done."
-            }
+            GamePhase.HUMAN_PASS_OR_DEFEND -> "Your defense. Defend, transfer with matching rank, or take."
+            GamePhase.HUMAN_THROW_IN -> "Choose a matching-rank card to add, or tap Done."
             GamePhase.AI_ATTACK, GamePhase.AI_DEFENSE, GamePhase.AI_THROW_IN, GamePhase.AI_PASS_OR_DEFEND -> "AI is thinking..."
             GamePhase.ROUND_RESOLUTION -> "Resolving the round..."
             GamePhase.GAME_OVER -> "Game over"
@@ -251,7 +230,6 @@ class GameViewModel(
 
     private fun persistGame() {
         gameState?.let(savedGameRepository::save)
-        hasSavedGame = savedGameRepository.hasSavedGame()
     }
 
     private fun show(message: String) {

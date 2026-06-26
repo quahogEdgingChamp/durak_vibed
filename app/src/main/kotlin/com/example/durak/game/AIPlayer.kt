@@ -85,7 +85,7 @@ class AIPlayer(
         if (state.table.isEmpty()) {
             rules.getLegalInitialAttackCards(state, playerIndex)
         } else {
-            rules.getLegalSameRankAddCards(state, playerIndex)
+            rules.getLegalAddCards(state, playerIndex)
         }
 
     private fun firstOpenAttack(state: GameState): Card? =

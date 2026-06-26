@@ -39,7 +39,6 @@ private class FakeSettingsDataSource : SettingsDataSource {
 }
 
 private class FakeSavedGameDataSource : SavedGameDataSource {
-    override fun hasSavedGame(): Boolean = false
     override fun save(state: GameState) = Unit
     override fun load(): GameState? = null
     override fun clear() = Unit

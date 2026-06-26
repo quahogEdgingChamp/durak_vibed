@@ -26,17 +26,17 @@ class GameRules {
         return canDefend(state, playerId, attackCard, defenseCard)
     }
 
-    fun canAddSameRankCard(state: GameState, playerId: Int, card: Card): Boolean {
+    fun canAddMatchingRankCard(state: GameState, playerId: Int, card: Card): Boolean {
         if (state.status != GameStatus.IN_PROGRESS || card !in state.players[playerId].hand) return false
-        if (state.settings.gameMode !in setOf(GameMode.TRANSFER, GameMode.CASUAL)) return false
+        if (state.settings.gameMode !in setOf(GameMode.CLASSIC, GameMode.CASUAL)) return false
         if (state.table.isEmpty() || state.needsDefense) return false
         if (playerId != state.attackerIndex) return false
-        if (attackCount(state) >= state.defenderHandSizeAtBoutStart) return false
+        if (attackCount(state) >= maxAttackCardsThisBout(state)) return false
         return card.rank in tableRanks(state)
     }
 
     fun canTransfer(state: GameState, playerId: Int, card: Card): Boolean {
-        if (state.status != GameStatus.IN_PROGRESS || state.settings.gameMode != GameMode.CASUAL) return false
+        if (state.status != GameStatus.IN_PROGRESS || state.settings.gameMode !in setOf(GameMode.TRANSFER, GameMode.CASUAL)) return false
         if (playerId != state.defenderIndex || card !in state.players[playerId].hand) return false
         if (state.table.isEmpty() || !state.needsDefense) return false
         if (card.rank !in state.table.map { it.attack.rank }.toSet()) return false
@@ -44,7 +44,8 @@ class GameRules {
         val nextDefender = nextActiveIndex(state, state.defenderIndex) ?: return false
         if (nextDefender == playerId) return false
         val newAttackCount = attackCount(state) + 1
-        return newAttackCount <= state.players[nextDefender].hand.size
+        val nextDefenderLimit = minOf(5, state.players[nextDefender].hand.size)
+        return newAttackCount <= nextDefenderLimit
     }
 
     fun getLegalInitialAttackCards(state: GameState, playerId: Int): List<Card> =
@@ -53,8 +54,8 @@ class GameRules {
     fun getLegalDefenseCards(state: GameState, playerId: Int, attackCard: Card): List<Card> =
         state.players.getOrNull(playerId)?.hand?.filter { canDefend(state, playerId, attackCard, it) }.orEmpty()
 
-    fun getLegalSameRankAddCards(state: GameState, playerId: Int): List<Card> =
-        state.players.getOrNull(playerId)?.hand?.filter { canAddSameRankCard(state, playerId, it) }.orEmpty()
+    fun getLegalAddCards(state: GameState, playerId: Int): List<Card> =
+        state.players.getOrNull(playerId)?.hand?.filter { canAddMatchingRankCard(state, playerId, it) }.orEmpty()
 
     fun getLegalTransferCards(state: GameState, playerId: Int): List<Card> =
         state.players.getOrNull(playerId)?.hand?.filter { canTransfer(state, playerId, it) }.orEmpty()
@@ -75,7 +76,7 @@ class GameRules {
         val openAttack = state.table.firstOrNull { it.defense == null }?.attack
         return hand.filterTo(mutableSetOf()) { card ->
             canInitialAttack(state, playerId, card) ||
-                canAddSameRankCard(state, playerId, card) ||
+                canAddMatchingRankCard(state, playerId, card) ||
                 canTransfer(state, playerId, card) ||
                 (openAttack != null && canDefend(state, playerId, openAttack, card))
         }
@@ -85,8 +86,8 @@ class GameRules {
         getLegalTransferCards(state, playerId).isNotEmpty()
 
     fun canEndAttack(state: GameState, playerId: Int): Boolean =
-        state.status == GameStatus.IN_PROGRESS &&
-            state.settings.gameMode != GameMode.CLASSIC &&
+            state.status == GameStatus.IN_PROGRESS &&
+            state.settings.gameMode != GameMode.TRANSFER &&
             playerId == state.attackerIndex &&
             state.table.isNotEmpty() &&
             !state.needsDefense
@@ -104,7 +105,10 @@ class GameRules {
         canInitialAttack(state, playerId, card)
 
     fun canThrowIn(state: GameState, playerId: Int, card: Card): Boolean =
-        canAddSameRankCard(state, playerId, card)
+        canAddMatchingRankCard(state, playerId, card)
+
+    fun canAddSameRankCard(state: GameState, playerId: Int, card: Card): Boolean =
+        canAddMatchingRankCard(state, playerId, card)
 
     fun canPass(state: GameState, playerId: Int, card: Card): Boolean =
         canTransfer(state, playerId, card)
@@ -113,7 +117,10 @@ class GameRules {
         getLegalInitialAttackCards(state, playerId)
 
     fun getLegalThrowInCards(state: GameState, playerId: Int): List<Card> =
-        getLegalSameRankAddCards(state, playerId)
+        getLegalAddCards(state, playerId)
+
+    fun getLegalSameRankAddCards(state: GameState, playerId: Int): List<Card> =
+        getLegalAddCards(state, playerId)
 
     fun getLegalPassCards(state: GameState, playerId: Int): List<Card> =
         getLegalTransferCards(state, playerId)
@@ -122,6 +129,9 @@ class GameRules {
         canAnyTransfer(state, playerId)
 
     private fun attackCount(state: GameState): Int = state.table.size
+
+    private fun maxAttackCardsThisBout(state: GameState): Int =
+        minOf(5, state.defenderHandSizeAtBoutStart)
 
     private fun tableRanks(state: GameState): Set<Rank> =
         state.table.flatMap { listOfNotNull(it.attack.rank, it.defense?.rank) }.toSet()
