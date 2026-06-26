@@ -39,6 +39,7 @@ class GameRules {
         if (state.status != GameStatus.IN_PROGRESS || state.settings.gameMode !in setOf(GameMode.TRANSFER, GameMode.CASUAL)) return false
         if (playerId != state.defenderIndex || card !in state.players[playerId].hand) return false
         if (state.table.isEmpty() || !state.needsDefense) return false
+        if (hasAnyDefenseOnTable(state)) return false
         if (card.rank !in state.table.map { it.attack.rank }.toSet()) return false
 
         val nextDefender = nextActiveIndex(state, state.defenderIndex) ?: return false
@@ -84,6 +85,9 @@ class GameRules {
 
     fun canAnyTransfer(state: GameState, playerId: Int): Boolean =
         getLegalTransferCards(state, playerId).isNotEmpty()
+
+    fun hasAnyDefenseOnTable(state: GameState): Boolean =
+        state.table.any { it.defense != null }
 
     fun canEndAttack(state: GameState, playerId: Int): Boolean =
             state.status == GameStatus.IN_PROGRESS &&

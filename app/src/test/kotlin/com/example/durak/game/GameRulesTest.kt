@@ -86,6 +86,27 @@ class GameRulesTest {
     }
 
     @Test
+    fun transferIsForbiddenAfterAnyAttackCardIsDefended() {
+        val state = partiallyDefendedTransferState(GameMode.TRANSFER)
+        val matchingCard = Card(Suit.HEARTS, Rank.NINE)
+
+        assertTrue(rules.hasAnyDefenseOnTable(state))
+        assertFalse(rules.canTransfer(state, 1, matchingCard))
+        assertTrue(rules.getLegalTransferCards(state, 1).isEmpty())
+        assertFalse(GameAction.PASS in rules.getAvailableActions(state, 1))
+    }
+
+    @Test
+    fun transferIsForbiddenAfterDefenseEvenWithOtherUnbeatenAttacks() {
+        val engine = GameEngine()
+        val state = partiallyDefendedTransferState(GameMode.TRANSFER)
+
+        val result = engine.playCard(state, 1, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table)
+
+        assertEquals(state, result.state)
+    }
+
+    @Test
     fun transferAutoDiscardsAfterSuccessfulDefense() {
         val engine = GameEngine()
         val attack = Card(Suit.SPADES, Rank.NINE)
@@ -106,6 +127,26 @@ class GameRulesTest {
         assertTrue(rules.canAddMatchingRankCard(defended, 0, Card(Suit.CLUBS, Rank.QUEEN)))
         assertFalse(rules.canAddMatchingRankCard(defended, 0, Card(Suit.HEARTS, Rank.ACE)))
         assertTrue(rules.canTransfer(defense, 1, Card(Suit.HEARTS, Rank.NINE)))
+    }
+
+    @Test
+    fun casualTransferIsForbiddenAfterDefenseStarts() {
+        val state = partiallyDefendedTransferState(GameMode.CASUAL)
+
+        assertFalse(rules.canTransfer(state, 1, Card(Suit.HEARTS, Rank.NINE)))
+        assertTrue(rules.getLegalTransferCards(state, 1).isEmpty())
+        assertFalse(GameAction.PASS in rules.getAvailableActions(state, 1))
+    }
+
+    @Test
+    fun defenseStillWorksAfterTransferBecomesForbidden() {
+        val engine = GameEngine()
+        val openAttack = Card(Suit.CLUBS, Rank.NINE)
+        val state = partiallyDefendedTransferState(GameMode.CASUAL)
+
+        val result = engine.playCard(state, 1, Card(Suit.CLUBS, Rank.ACE), DropTarget.AttackCard(openAttack)).state
+
+        assertEquals(Card(Suit.CLUBS, Rank.ACE), result.table.last().defense)
     }
 
     @Test
@@ -191,6 +232,14 @@ class GameRulesTest {
                 TableCard(Card(Suit.SPADES, Rank.NINE), Card(Suit.SPADES, Rank.QUEEN))
             },
             defenderHandSizeAtBoutStart = defenderLimit
+        )
+
+    private fun partiallyDefendedTransferState(mode: GameMode): GameState =
+        emptyTableState(mode).copy(
+            table = listOf(
+                TableCard(Card(Suit.SPADES, Rank.NINE), Card(Suit.SPADES, Rank.QUEEN)),
+                TableCard(Card(Suit.CLUBS, Rank.NINE))
+            )
         )
 
     private fun transferState(nextDefenderCards: Int, attackCount: Int): GameState =

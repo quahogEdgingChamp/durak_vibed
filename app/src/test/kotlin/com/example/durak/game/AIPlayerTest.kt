@@ -94,6 +94,17 @@ class AIPlayerTest {
     }
 
     @Test
+    fun aiDoesNotTransferAfterDefenseStarts() {
+        val state = partiallyDefendedTransferState(AiDifficulty.HARD, GameMode.TRANSFER)
+
+        assertTrue(rules.getLegalTransferCards(state, 1).isEmpty())
+        val move = AIPlayer().chooseMove(state, 1)
+
+        assertFalse(move == AiMove.Play(Card(Suit.DIAMONDS, Rank.TEN)))
+        assertLegalMove(state, 1, move)
+    }
+
+    @Test
     fun casualAiCanTransferAndThrowInLegally() {
         val transferState = casualTransferDefenseState(AiDifficulty.HARD, nextDefenderCards = 3)
         val transferMove = AIPlayer().chooseMove(transferState, 1)
@@ -173,6 +184,28 @@ class AIPlayerTest {
             trumpCard = trump,
             trumpSuit = trump.suit,
             table = listOf(TableCard(attack)),
+            attackerIndex = 0,
+            defenderIndex = 1,
+            defenderHandSizeAtBoutStart = 2
+        )
+    }
+
+    private fun partiallyDefendedTransferState(difficulty: AiDifficulty, mode: GameMode): GameState {
+        val trump = Card(Suit.HEARTS, Rank.SIX)
+        return GameState(
+            settings = GameSettings(gameMode = mode, aiDifficulty = difficulty, playerCount = 3),
+            players = listOf(
+                Player(0, "You", true, listOf(Card(Suit.DIAMONDS, Rank.SIX))),
+                Player(1, "AI 1", false, listOf(Card(Suit.DIAMONDS, Rank.TEN), Card(Suit.SPADES, Rank.JACK))),
+                Player(2, "AI 2", false, listOf(Card(Suit.CLUBS, Rank.SIX), Card(Suit.DIAMONDS, Rank.SEVEN), Card(Suit.DIAMONDS, Rank.EIGHT)))
+            ),
+            drawPile = List(12) { Card(Suit.SPADES, Rank.NINE) },
+            trumpCard = trump,
+            trumpSuit = trump.suit,
+            table = listOf(
+                TableCard(Card(Suit.CLUBS, Rank.TEN), Card(Suit.CLUBS, Rank.QUEEN)),
+                TableCard(Card(Suit.SPADES, Rank.TEN))
+            ),
             attackerIndex = 0,
             defenderIndex = 1,
             defenderHandSizeAtBoutStart = 2
