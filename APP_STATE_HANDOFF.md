@@ -35,7 +35,7 @@ Recent local changes on 2026-06-26:
 - Added persisted legal hint color presets in Settings.
 - Fixed take animations so cards fly toward the taking human or AI panel instead of fading in place.
 - Switched hand card dragging from long-press drag to regular drag while preserving tap-to-play.
-- Simplified the game info panel by removing deck count and attacker/defender text; it now prioritizes prompt, mode, table/bita count, trump, and latest event.
+- Simplified the game info panel by removing attacker/defender text; it now prioritizes prompt, mode, deck/table/bita count, trump, and latest event.
 - Animation speed now has exactly three modes: Fast, Normal, Slow.
 - Animation speed controls AI card timing and table card motion into take/discard/bita targets.
 - Release APKs are attached to GitHub Releases as `durak-vibed-debug.apk`; APKs should not be kept in the repo root.

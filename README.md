@@ -79,7 +79,7 @@ Release APKs are attached to GitHub Releases, not stored in the repository root.
 - AI/table animation speed has three modes: Fast, Normal, and Slow.
 - The speed setting controls AI throw timing and table card movement into take/discard targets.
 - Hand cards support tap-to-play and drag-to-drop.
-- The game info panel intentionally omits deck count and attacker/defender text to keep the prompt and event text readable.
+- The game info panel shows deck, table, and bita counts while omitting attacker/defender text to keep the prompt and event text readable.
 
 Run unit tests:
 

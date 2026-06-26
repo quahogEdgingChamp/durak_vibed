@@ -76,7 +76,7 @@ fun GameInfoPanel(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                "${state.settings.gameMode.title}  |  Table ${state.table.size}  |  Bita ${state.discardPile.size}",
+                "${state.settings.gameMode.title}  |  Deck ${state.deckRemaining}  |  Table ${state.table.size}  |  Bita ${state.discardPile.size}",
                 color = Color.White.copy(alpha = 0.82f),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
