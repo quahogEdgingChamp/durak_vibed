@@ -4,20 +4,23 @@ class AIPlayer(private val rules: GameRules = GameRules()) {
     fun chooseMove(state: GameState, playerIndex: Int): AiMove {
         val hand = state.players[playerIndex].hand
         if (state.needsDefense && playerIndex == state.defenderIndex) {
-            val pass = hand
-                .filter { rules.canPass(state, playerIndex, it) }
+            val pass = rules.getLegalPassCards(state, playerIndex)
                 .minWithOrNull(cardComparator(state.trumpSuit))
             if (pass != null) return AiMove.Play(pass)
 
-            val defense = hand
-                .filter { rules.canDefend(state, playerIndex, it) }
+            val attack = state.table.firstOrNull { it.defense == null }?.attack ?: return AiMove.Done
+            val defense = rules.getLegalDefenseCards(state, playerIndex, attack)
                 .minWithOrNull(cardComparator(state.trumpSuit))
             return defense?.let { AiMove.Play(it) } ?: AiMove.Take
         }
 
         if (!state.needsDefense && playerIndex == state.attackerIndex) {
-            val attack = hand
-                .filter { rules.canAttack(state, playerIndex, it) }
+            val legal = if (state.table.isEmpty()) {
+                rules.getLegalAttackCards(state, playerIndex)
+            } else {
+                rules.getLegalThrowInCards(state, playerIndex)
+            }
+            val attack = legal
                 .minWithOrNull(cardComparator(state.trumpSuit))
             return attack?.let { AiMove.Play(it) } ?: AiMove.Done
         }

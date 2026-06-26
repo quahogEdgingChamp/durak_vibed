@@ -16,10 +16,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.durak.data.CardStyle
+import com.example.durak.game.DropTarget
 import com.example.durak.game.TableCard
 
 @Composable
@@ -27,7 +31,8 @@ fun TableView(
     table: List<TableCard>,
     cardStyle: CardStyle,
     highlighted: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTargetBoundsChanged: (DropTarget, Rect) -> Unit = { _, _ -> }
 ) {
     val border = if (highlighted) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.23f)
     Box(
@@ -52,11 +57,30 @@ fun TableView(
                 verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
             ) {
                 table.forEach { pair ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        CardView(pair.attack, cardSize = CardSize(54.dp, 78.dp), style = cardStyle)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        modifier = Modifier.onGloballyPositioned {
+                            if (pair.defense == null) {
+                                onTargetBoundsChanged(DropTarget.DefenseSlot(pair.attack), it.boundsInRoot())
+                            }
+                        }
+                    ) {
+                        CardView(
+                            pair.attack,
+                            cardSize = CardSize(54.dp, 78.dp),
+                            style = cardStyle,
+                            modifier = Modifier.onGloballyPositioned {
+                                onTargetBoundsChanged(DropTarget.AttackCard(pair.attack), it.boundsInRoot())
+                            }
+                        )
                         pair.defense?.let {
                             CardView(it, cardSize = CardSize(54.dp, 78.dp), style = cardStyle)
-                        } ?: DefensePlaceholder()
+                        } ?: DefensePlaceholder(
+                            modifier = Modifier.onGloballyPositioned {
+                                onTargetBoundsChanged(DropTarget.DefenseSlot(pair.attack), it.boundsInRoot())
+                            }
+                        )
                     }
                 }
             }
@@ -65,9 +89,9 @@ fun TableView(
 }
 
 @Composable
-private fun DefensePlaceholder() {
+private fun DefensePlaceholder(modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .background(Color.White.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
             .border(1.dp, Color.White.copy(alpha = 0.28f), RoundedCornerShape(8.dp))
             .padding(horizontal = 21.dp, vertical = 29.dp),

@@ -8,69 +8,88 @@ class GameRules {
         return defense.suit == trumpSuit && attack.suit != trumpSuit
     }
 
-    fun canDefend(state: GameState, playerIndex: Int, card: Card): Boolean {
-        if (state.status != GameStatus.IN_PROGRESS || playerIndex != state.defenderIndex) return false
-        val target = state.table.firstOrNull { it.defense == null } ?: return false
-        return card in state.players[playerIndex].hand && canBeat(target.attack, card, state.trumpSuit)
+    fun canAttack(state: GameState, playerId: Int, card: Card): Boolean =
+        state.status == GameStatus.IN_PROGRESS &&
+            playerId == state.attackerIndex &&
+            state.table.isEmpty() &&
+            card in state.players[playerId].hand
+
+    fun canDefend(state: GameState, playerId: Int, attackCard: Card, defenseCard: Card): Boolean {
+        if (state.status != GameStatus.IN_PROGRESS || playerId != state.defenderIndex) return false
+        if (defenseCard !in state.players[playerId].hand) return false
+        val tableCard = state.table.firstOrNull { it.attack == attackCard } ?: return false
+        return tableCard.defense == null && canBeat(attackCard, defenseCard, state.trumpSuit)
     }
 
-    fun canAttack(state: GameState, playerIndex: Int, card: Card): Boolean {
-        if (state.status != GameStatus.IN_PROGRESS || playerIndex != state.attackerIndex) return false
-        if (state.needsDefense || card !in state.players[playerIndex].hand) return false
-        if (state.table.isEmpty()) return true
-        if (!hasAttackCapacity(state)) return false
-
-        return when (state.settings.gameMode) {
-            GameMode.CLASSIC -> false
-            GameMode.THROW_IN, GameMode.PASSING -> card.rank in tableRanks(state)
-            GameMode.CASUAL -> true
-        }
+    fun canDefend(state: GameState, playerId: Int, defenseCard: Card): Boolean {
+        val attackCard = state.table.firstOrNull { it.defense == null }?.attack ?: return false
+        return canDefend(state, playerId, attackCard, defenseCard)
     }
 
-    fun canPass(state: GameState, playerIndex: Int, card: Card): Boolean {
-        if (state.status != GameStatus.IN_PROGRESS || playerIndex != state.defenderIndex) return false
-        if (state.settings.gameMode !in setOf(GameMode.PASSING, GameMode.CASUAL)) return false
-        if (card !in state.players[playerIndex].hand || state.table.isEmpty()) return false
-        if (state.table.any { it.defense != null }) return false
+    fun canThrowIn(state: GameState, playerId: Int, card: Card): Boolean {
+        if (state.status != GameStatus.IN_PROGRESS || card !in state.players[playerId].hand) return false
+        if (state.table.isEmpty() || state.needsDefense) return false
+        if (playerId != state.attackerIndex) return false
+        if (state.settings.gameMode !in setOf(GameMode.THROW_IN, GameMode.CASUAL)) return false
         if (card.rank !in tableRanks(state)) return false
+        return state.settings.gameMode == GameMode.CASUAL || attackCount(state) < state.boutDefenderCardLimit
+    }
+
+    fun canPass(state: GameState, playerId: Int, card: Card): Boolean {
+        if (state.status != GameStatus.IN_PROGRESS || playerId != state.defenderIndex) return false
+        if (state.settings.gameMode != GameMode.PASSING) return false
+        if (card !in state.players[playerId].hand || state.table.isEmpty()) return false
+        if (state.table.any { it.defense != null }) return false
+        if (card.rank !in state.table.map { it.attack.rank }.toSet()) return false
 
         val nextDefender = nextActiveIndex(state, state.defenderIndex) ?: return false
-        if (nextDefender == playerIndex) return false
-        val nextHandSize = state.players[nextDefender].hand.size
-        val newAttackCount = state.table.size + 1
-        return state.settings.gameMode == GameMode.CASUAL || nextHandSize >= newAttackCount
+        if (nextDefender == playerId) return false
+        val newAttackCount = attackCount(state) + 1
+        return state.players[nextDefender].hand.size >= newAttackCount
     }
 
-    fun canAnyPass(state: GameState, playerIndex: Int): Boolean =
-        state.players.getOrNull(playerIndex)?.hand?.any { canPass(state, playerIndex, it) } == true
+    fun getLegalAttackCards(state: GameState, playerId: Int): List<Card> =
+        state.players.getOrNull(playerId)?.hand?.filter { canAttack(state, playerId, it) }.orEmpty()
 
-    fun canEndAttack(state: GameState, playerIndex: Int): Boolean =
-        state.status == GameStatus.IN_PROGRESS &&
-            playerIndex == state.attackerIndex &&
-            state.table.isNotEmpty() &&
-            !state.needsDefense
+    fun getLegalDefenseCards(state: GameState, playerId: Int, attackCard: Card): List<Card> =
+        state.players.getOrNull(playerId)?.hand?.filter { canDefend(state, playerId, attackCard, it) }.orEmpty()
 
-    fun legalCards(state: GameState, playerIndex: Int): Set<Card> {
-        val hand = state.players[playerIndex].hand
+    fun getLegalThrowInCards(state: GameState, playerId: Int): List<Card> =
+        state.players.getOrNull(playerId)?.hand?.filter { canThrowIn(state, playerId, it) }.orEmpty()
+
+    fun getLegalPassCards(state: GameState, playerId: Int): List<Card> =
+        state.players.getOrNull(playerId)?.hand?.filter { canPass(state, playerId, it) }.orEmpty()
+
+    fun getAvailableActions(state: GameState, playerId: Int): Set<GameAction> {
+        if (state.status != GameStatus.IN_PROGRESS || state.currentActorIndex != playerId) return emptySet()
+        val actions = mutableSetOf<GameAction>()
+        if (playerId == state.defenderIndex && state.table.isNotEmpty()) {
+            actions += GameAction.TAKE
+            if (getLegalPassCards(state, playerId).isNotEmpty()) actions += GameAction.PASS
+        }
+        if (canEndAttack(state, playerId)) actions += GameAction.DONE
+        return actions
+    }
+
+    fun legalCards(state: GameState, playerId: Int): Set<Card> {
+        val hand = state.players.getOrNull(playerId)?.hand ?: return emptySet()
+        val openAttack = state.table.firstOrNull { it.defense == null }?.attack
         return hand.filterTo(mutableSetOf()) { card ->
-            canAttack(state, playerIndex, card) ||
-                canDefend(state, playerIndex, card) ||
-                canPass(state, playerIndex, card)
+            canAttack(state, playerId, card) ||
+                canThrowIn(state, playerId, card) ||
+                canPass(state, playerId, card) ||
+                (openAttack != null && canDefend(state, playerId, openAttack, card))
         }
     }
 
-    fun legalPassCards(state: GameState, playerIndex: Int): Set<Card> =
-        state.players.getOrNull(playerIndex)?.hand?.filterTo(mutableSetOf()) { canPass(state, playerIndex, it) }.orEmpty()
+    fun canAnyPass(state: GameState, playerId: Int): Boolean =
+        getLegalPassCards(state, playerId).isNotEmpty()
 
-    private fun hasAttackCapacity(state: GameState): Boolean {
-        val defender = state.players[state.defenderIndex]
-        val defensesPlayed = state.table.count { it.defense != null }
-        val defenderBattleCapacity = defender.hand.size + defensesPlayed
-        return state.table.size < defenderBattleCapacity
-    }
-
-    private fun tableRanks(state: GameState): Set<Rank> =
-        state.table.flatMap { listOfNotNull(it.attack.rank, it.defense?.rank) }.toSet()
+    fun canEndAttack(state: GameState, playerId: Int): Boolean =
+        state.status == GameStatus.IN_PROGRESS &&
+            playerId == state.attackerIndex &&
+            state.table.isNotEmpty() &&
+            !state.needsDefense
 
     fun nextActiveIndex(state: GameState, afterIndex: Int): Int? {
         if (state.players.none { it.hand.isNotEmpty() }) return null
@@ -80,4 +99,9 @@ class GameRules {
         }
         return null
     }
+
+    private fun attackCount(state: GameState): Int = state.table.size
+
+    private fun tableRanks(state: GameState): Set<Rank> =
+        state.table.flatMap { listOfNotNull(it.attack.rank, it.defense?.rank) }.toSet()
 }

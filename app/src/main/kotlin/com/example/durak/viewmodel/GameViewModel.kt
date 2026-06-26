@@ -11,7 +11,9 @@ import com.example.durak.data.SettingsDataSource
 import com.example.durak.game.AIPlayer
 import com.example.durak.game.AiMove
 import com.example.durak.game.Card
+import com.example.durak.game.DropTarget
 import com.example.durak.game.GameEngine
+import com.example.durak.game.GameAction
 import com.example.durak.game.GameMode
 import com.example.durak.game.GamePhase
 import com.example.durak.game.GameSettings
@@ -28,12 +30,6 @@ enum class Screen {
     SETTINGS,
     GAME,
     END
-}
-
-enum class GameAction(val title: String) {
-    DONE("Done"),
-    TAKE("Take"),
-    PASS("Pass")
 }
 
 class GameViewModel(
@@ -103,13 +99,21 @@ class GameViewModel(
     }
 
     fun playHumanCard(card: Card): Boolean {
+        return playHumanCard(card, DropTarget.Table)
+    }
+
+    fun onCardDropped(card: Card, target: DropTarget): Boolean {
+        return playHumanCard(card, target)
+    }
+
+    private fun playHumanCard(card: Card, target: DropTarget): Boolean {
         val state = gameState ?: return false
         if (state.currentActorIndex != 0 || state.status == GameStatus.FINISHED || aiThinking) {
             show("Wait for your turn.")
             return false
         }
         val before = state
-        val result = engine.playCard(state, 0, card)
+        val result = engine.playCard(state, 0, card, target)
         gameState = result.state
         show(result.state.message.ifBlank { result.message })
         persistGame()
@@ -154,15 +158,7 @@ class GameViewModel(
     fun getAvailableActions(): List<GameAction> {
         val state = gameState ?: return emptyList()
         if (state.status == GameStatus.FINISHED || state.currentActorIndex != 0 || aiThinking) return emptyList()
-        val actions = mutableListOf<GameAction>()
-        if (state.phase == GamePhase.HUMAN_DEFENSE) {
-            actions += GameAction.TAKE
-            if (state.settings.gameMode == GameMode.PASSING && engine.canAnyPass(state, 0)) actions += GameAction.PASS
-        }
-        if ((state.phase == GamePhase.HUMAN_THROW_IN || state.phase == GamePhase.HUMAN_ATTACK) && engine.canEndAttack(state, 0)) {
-            actions += GameAction.DONE
-        }
-        return actions
+        return engine.availableActions(state, 0).toList()
     }
 
     fun getUserPromptText(): String {
@@ -175,8 +171,9 @@ class GameViewModel(
                 if (getLegalPassCardsForHuman().isNotEmpty()) "You can pass or defend."
                 else "Your defense. Drag a card that beats the attack."
             }
+            GamePhase.HUMAN_PASS_OR_DEFEND -> "Your defense. Defend, pass with matching rank, or take."
             GamePhase.HUMAN_THROW_IN -> "Choose a card to throw in, or tap Done."
-            GamePhase.AI_ATTACK, GamePhase.AI_DEFENSE -> "AI is thinking..."
+            GamePhase.AI_ATTACK, GamePhase.AI_DEFENSE, GamePhase.AI_THROW_IN, GamePhase.AI_PASS_OR_DEFEND -> "AI is thinking..."
             GamePhase.ROUND_RESOLUTION -> "Resolving the round..."
             GamePhase.GAME_OVER -> "Game over"
         }

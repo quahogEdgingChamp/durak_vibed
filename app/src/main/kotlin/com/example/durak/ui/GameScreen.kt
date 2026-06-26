@@ -1,7 +1,7 @@
 package com.example.durak.ui
 
+import android.util.Log
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -24,8 +24,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,35 +35,43 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.durak.data.CardStyle
 import com.example.durak.game.Card
+import com.example.durak.game.DropTarget
+import com.example.durak.game.GameAction
 import com.example.durak.game.GameState
 import com.example.durak.ui.components.ActionBar
 import com.example.durak.ui.components.CardSize
 import com.example.durak.ui.components.CardView
 import com.example.durak.ui.components.PlayerPanel
 import com.example.durak.ui.components.TableView
-import com.example.durak.viewmodel.GameAction
 import com.example.durak.viewmodel.GameViewModel
 import com.example.durak.viewmodel.Screen
+import kotlin.math.roundToInt
 
 @Composable
 fun GameScreen(viewModel: GameViewModel) {
     val state = viewModel.gameState ?: return
     var tableBounds by remember { mutableStateOf<Rect?>(null) }
-    var draggingCard by remember { mutableStateOf<Card?>(null) }
+    var dragState by remember { mutableStateOf(DragState()) }
+    val dropTargetBounds = remember { mutableStateMapOf<DropTarget, Rect>() }
     var showMenu by remember { mutableStateOf(false) }
     var confirmAction by remember { mutableStateOf<ConfirmAction?>(null) }
     val cardStyle = viewModel.appPreferences.cardStyle
     val legalCards = if (viewModel.appPreferences.showLegalMoveHints) viewModel.getLegalCardsForHuman() else emptySet()
+
+    LaunchedEffect(state.table) {
+        dropTargetBounds.clear()
+    }
 
     Box(
         modifier = Modifier
@@ -89,8 +99,11 @@ fun GameScreen(viewModel: GameViewModel) {
                 TableView(
                     table = state.table,
                     cardStyle = cardStyle,
-                    highlighted = draggingCard != null,
-                    modifier = Modifier.fillMaxSize()
+                    highlighted = dragState.isDragging,
+                    modifier = Modifier.fillMaxSize(),
+                    onTargetBoundsChanged = { target, bounds ->
+                        dropTargetBounds[target] = bounds
+                    }
                 )
             }
             ActionBar(actions = viewModel.getAvailableActions(), onAction = { action ->
@@ -104,12 +117,18 @@ fun GameScreen(viewModel: GameViewModel) {
                 hand = state.players.first().hand,
                 legalCards = legalCards,
                 cardStyle = cardStyle,
-                onDragStart = { draggingCard = it },
+                onDragStart = { card, center ->
+                    Log.d("DurakDrag", "drag start card=$card center=$center")
+                    dragState = DragState(card = card, currentOffset = center, isDragging = true)
+                },
+                onDragMove = { center ->
+                    dragState = dragState.copy(currentOffset = center)
+                },
                 onDragEnd = { card, center ->
-                    draggingCard = null
-                    if (tableBounds?.contains(center) == true) {
-                        if (!viewModel.playHumanCard(card)) viewModel.invalidDrop(card)
-                    } else {
+                    val target = resolveDropTarget(center, tableBounds, dropTargetBounds)
+                    Log.d("DurakDrag", "drop card=$card center=$center target=$target")
+                    dragState = DragState()
+                    if (!viewModel.onCardDropped(card, target)) {
                         viewModel.invalidDrop(card)
                     }
                 },
@@ -118,6 +137,8 @@ fun GameScreen(viewModel: GameViewModel) {
                 }
             )
         }
+
+        DragOverlay(dragState = dragState, cardStyle = cardStyle)
     }
 
     if (showMenu) {
@@ -210,7 +231,8 @@ private fun HumanHand(
     hand: List<Card>,
     legalCards: Set<Card>,
     cardStyle: CardStyle,
-    onDragStart: (Card) -> Unit,
+    onDragStart: (Card, Offset) -> Unit,
+    onDragMove: (Offset) -> Unit,
     onDragEnd: (Card, Offset) -> Unit,
     onTap: (Card) -> Unit
 ) {
@@ -239,6 +261,7 @@ private fun HumanHand(
                         .offset(x = spacing * index, y = if (playable) 0.dp else 10.dp)
                         .zIndex(index.toFloat()),
                     onDragStart = onDragStart,
+                    onDragMove = onDragMove,
                     onDragEnd = onDragEnd,
                     onTap = onTap
                 )
@@ -255,42 +278,38 @@ private fun DraggableHandCard(
     playable: Boolean,
     disabled: Boolean,
     modifier: Modifier,
-    onDragStart: (Card) -> Unit,
+    onDragStart: (Card, Offset) -> Unit,
+    onDragMove: (Offset) -> Unit,
     onDragEnd: (Card, Offset) -> Unit,
     onTap: (Card) -> Unit
 ) {
-    var dragOffset by remember(card) { mutableStateOf(Offset.Zero) }
     var dragging by remember(card) { mutableStateOf(false) }
     var bounds by remember(card) { mutableStateOf<Rect?>(null) }
-    val animatedOffset by animateOffsetAsState(if (dragging) dragOffset else Offset.Zero, label = "card-drag")
+    var currentCenter by remember(card) { mutableStateOf(Offset.Zero) }
 
     Box(
         modifier = modifier
-            .graphicsLayer {
-                translationX = animatedOffset.x
-                translationY = animatedOffset.y
-            }
             .zIndex(if (dragging) 100f else 0f)
             .onGloballyPositioned { bounds = it.boundsInRoot() }
             .pointerInput(card) {
                 detectDragGestures(
                     onDragStart = {
+                        currentCenter = bounds?.center ?: Offset.Zero
                         dragging = true
-                        onDragStart(card)
+                        onDragStart(card, currentCenter)
                     },
                     onDragCancel = {
                         dragging = false
-                        dragOffset = Offset.Zero
                     },
                     onDragEnd = {
-                        val center = bounds?.center?.plus(dragOffset) ?: Offset.Zero
+                        val center = currentCenter
                         dragging = false
                         onDragEnd(card, center)
-                        dragOffset = Offset.Zero
                     },
                     onDrag = { change, amount ->
                         change.consume()
-                        dragOffset += amount
+                        currentCenter += amount
+                        onDragMove(currentCenter)
                     }
                 )
             }
@@ -302,9 +321,33 @@ private fun DraggableHandCard(
             cardSize = cardSize,
             style = cardStyle,
             playable = playable,
-            disabled = disabled
+            disabled = disabled || dragging
         )
     }
+}
+
+@Composable
+private fun DragOverlay(dragState: DragState, cardStyle: CardStyle) {
+    val card = dragState.card ?: return
+    if (!dragState.isDragging) return
+    val size = CardSize(68.dp, 98.dp)
+    val density = LocalDensity.current
+    val widthPx = with(density) { size.width.toPx() }
+    val heightPx = with(density) { size.height.toPx() }
+    CardView(
+        card = card,
+        cardSize = size,
+        style = cardStyle,
+        playable = true,
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    (dragState.currentOffset.x - widthPx / 2f).roundToInt(),
+                    (dragState.currentOffset.y - heightPx / 2f).roundToInt()
+                )
+            }
+            .zIndex(500f)
+    )
 }
 
 @Composable
@@ -356,4 +399,22 @@ private fun roleFor(state: GameState, index: Int): String =
 private enum class ConfirmAction {
     RESTART,
     MAIN_MENU
+}
+
+private data class DragState(
+    val card: Card? = null,
+    val currentOffset: Offset = Offset.Zero,
+    val isDragging: Boolean = false
+)
+
+private fun resolveDropTarget(
+    positionInRoot: Offset,
+    tableBounds: Rect?,
+    targetBounds: Map<DropTarget, Rect>
+): DropTarget {
+    val specific = targetBounds.entries
+        .firstOrNull { it.value.contains(positionInRoot) }
+        ?.key
+    if (specific != null) return specific
+    return if (tableBounds?.contains(positionInRoot) == true) DropTarget.Table else DropTarget.None
 }
