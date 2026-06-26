@@ -69,6 +69,22 @@ fun CardView(
 }
 
 @Composable
+fun MiniCardView(
+    card: Card,
+    modifier: Modifier = Modifier,
+    style: CardStyle = CardStyle.CLASSIC
+) {
+    CardView(
+        card = card,
+        modifier = modifier,
+        cardSize = CardSize(36.dp, 50.dp),
+        style = style,
+        playable = false,
+        disabled = false
+    )
+}
+
+@Composable
 private fun CardFaceContent(card: Card) {
     val suitColor = if (card.suit.isRed) Color(0xFFC62828) else Color(0xFF151515)
     Box(Modifier.fillMaxSize().padding(6.dp)) {

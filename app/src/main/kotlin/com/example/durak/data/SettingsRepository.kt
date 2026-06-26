@@ -36,10 +36,10 @@ class SettingsRepository(context: Context) : SettingsDataSource {
     private val prefs = context.getSharedPreferences("durak_settings", Context.MODE_PRIVATE)
 
     override fun loadGameSettings(): GameSettings = GameSettings(
-        deckMode = prefs.getString("deckMode", null)?.let(DeckMode::valueOf) ?: DeckMode.CARDS_36,
-        gameMode = prefs.getString("gameMode", null)?.let(GameMode::valueOf) ?: GameMode.THROW_IN,
+        deckMode = prefs.getString("deckMode", null).enumValueOrNull<DeckMode>() ?: DeckMode.CARDS_36,
+        gameMode = prefs.getString("gameMode", null).enumValueOrNull<GameMode>() ?: GameMode.THROW_IN,
         playerCount = prefs.getInt("playerCount", 2).coerceIn(2, 4),
-        aiDifficulty = prefs.getString("aiDifficulty", null)?.let(AiDifficulty::valueOf) ?: AiDifficulty.NORMAL
+        aiDifficulty = prefs.getString("aiDifficulty", null).enumValueOrNull<AiDifficulty>() ?: AiDifficulty.NORMAL
     )
 
     override fun saveGameSettings(settings: GameSettings) {
@@ -52,8 +52,8 @@ class SettingsRepository(context: Context) : SettingsDataSource {
     }
 
     override fun loadAppPreferences(): AppPreferences = AppPreferences(
-        animationSpeed = prefs.getString("animationSpeed", null)?.let(AnimationSpeed::valueOf) ?: AnimationSpeed.NORMAL,
-        cardStyle = prefs.getString("cardStyle", null)?.let(CardStyle::valueOf) ?: CardStyle.CLASSIC,
+        animationSpeed = prefs.getString("animationSpeed", null).enumValueOrNull<AnimationSpeed>() ?: AnimationSpeed.NORMAL,
+        cardStyle = prefs.getString("cardStyle", null).enumValueOrNull<CardStyle>() ?: CardStyle.CLASSIC,
         showLegalMoveHints = prefs.getBoolean("showLegalMoveHints", true),
         confirmNewGame = prefs.getBoolean("confirmNewGame", true)
     )
@@ -67,3 +67,6 @@ class SettingsRepository(context: Context) : SettingsDataSource {
             .apply()
     }
 }
+
+private inline fun <reified T : Enum<T>> String?.enumValueOrNull(): T? =
+    this?.let { value -> enumValues<T>().firstOrNull { it.name == value } }

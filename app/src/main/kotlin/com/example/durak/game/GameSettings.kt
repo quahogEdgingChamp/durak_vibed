@@ -2,7 +2,8 @@ package com.example.durak.game
 
 enum class AiDifficulty(val title: String) {
     EASY("Easy"),
-    NORMAL("Normal")
+    NORMAL("Normal"),
+    HARD("Hard")
 }
 
 data class GameSettings(

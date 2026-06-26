@@ -25,6 +25,7 @@ permission.
 - Throw-in Durak / Podkidnoy.
 - Passing Durak / Perevodnoy.
 - Casual mode.
+- Easy, Normal, and Hard AI difficulty.
 - Custom drawn card UI.
 - Drag cards from your hand to the table to attack, defend, throw in, or pass.
 - Contextual actions for `Done`, `Take`, and `Pass`.

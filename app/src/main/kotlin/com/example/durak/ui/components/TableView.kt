@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -39,14 +40,19 @@ fun TableView(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 180.dp)
-            .background(Color.Black.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
-            .border(if (highlighted) 3.dp else 1.dp, border, RoundedCornerShape(12.dp))
+            .background(
+                Brush.radialGradient(
+                    listOf(Color(0x2237C985), Color(0x33000000))
+                ),
+                RoundedCornerShape(14.dp)
+            )
+            .border(if (highlighted) 3.dp else 1.dp, border, RoundedCornerShape(14.dp))
             .padding(10.dp),
         contentAlignment = Alignment.Center
     ) {
         if (table.isEmpty()) {
             Text(
-                "Drop cards here",
+                if (highlighted) "Release to play" else "Drag card here",
                 color = Color.White.copy(alpha = 0.75f),
                 fontWeight = FontWeight.SemiBold
             )

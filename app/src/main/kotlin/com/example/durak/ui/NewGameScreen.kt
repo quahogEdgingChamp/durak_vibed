@@ -1,6 +1,7 @@
 package com.example.durak.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -12,18 +13,23 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.example.durak.game.AiDifficulty
 import com.example.durak.game.DeckMode
 import com.example.durak.game.GameMode
+import com.example.durak.ui.components.GamePanel
+import com.example.durak.ui.components.MenuButton
 import com.example.durak.viewmodel.GameViewModel
 import com.example.durak.viewmodel.Screen
 
@@ -31,7 +37,7 @@ import com.example.durak.viewmodel.Screen
 fun NewGameScreen(viewModel: GameViewModel) {
     val settings = viewModel.gameOptions
     MenuPanel {
-        Text("New Game", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        ScreenTitle("New Game")
         OptionGroup("Deck size", DeckMode.entries, settings.deckMode, { "${it.size}" }) {
             viewModel.updateGameOptions(settings.copy(deckMode = it))
         }
@@ -44,8 +50,8 @@ fun NewGameScreen(viewModel: GameViewModel) {
         OptionGroup("AI difficulty", AiDifficulty.entries, settings.aiDifficulty, { it.title }) {
             viewModel.updateGameOptions(settings.copy(aiDifficulty = it))
         }
-        Button(onClick = viewModel::startGame, modifier = Modifier.fillMaxWidth()) { Text("Start Game") }
-        OutlinedButton(onClick = { viewModel.goTo(Screen.MENU) }, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+        MenuButton("Start Game", onClick = viewModel::startGame, primary = true)
+        MenuButton("Back", onClick = { viewModel.goTo(Screen.MENU) })
     }
 }
 
@@ -60,15 +66,7 @@ fun MenuPanel(content: @Composable ColumnScope.() -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFFF7F4EA), RoundedCornerShape(10.dp))
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            content = content
-        )
+        GamePanel(modifier = Modifier.fillMaxWidth(), content = content)
     }
 }
 
@@ -81,15 +79,37 @@ fun <T> OptionGroup(
     onSelected: (T) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        Text(label, fontWeight = FontWeight.SemiBold)
+        Text(label, fontWeight = FontWeight.Bold, color = Color(0xFF233126))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { option ->
                 if (option == selected) {
-                    Button(onClick = { onSelected(option) }) { Text(title(option)) }
+                    Button(
+                        onClick = { onSelected(option) },
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5B2A86), contentColor = Color.White)
+                    ) { Text(title(option), fontWeight = FontWeight.Bold) }
                 } else {
-                    OutlinedButton(onClick = { onSelected(option) }) { Text(title(option)) }
+                    OutlinedButton(
+                        onClick = { onSelected(option) },
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF27372A))
+                    ) { Text(title(option), fontWeight = FontWeight.SemiBold) }
                 }
             }
         }
     }
+}
+
+@Composable
+fun ScreenTitle(text: String) {
+    Text(
+        text,
+        color = Color(0xFF1B2B20),
+        style = TextStyle(
+            fontFamily = FontFamily.Serif,
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 0.6.sp
+        )
+    )
 }

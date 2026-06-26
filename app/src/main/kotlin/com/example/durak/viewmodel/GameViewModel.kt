@@ -190,7 +190,7 @@ class GameViewModel(
             var guard = 0
             while (state.status == GameStatus.IN_PROGRESS && state.currentActorIndex != 0 && guard < 80) {
                 aiThinking = true
-                val wait = appPreferences.animationSpeed.aiDelayMillis
+                val wait = aiDelayMillis(state)
                 if (wait > 0L) delay(wait)
                 val actor = state.currentActorIndex
                 val move = ai.chooseMove(state, actor)
@@ -204,7 +204,7 @@ class GameViewModel(
                 show(describeAiMove(actor, move, state.message.ifBlank { result.message }))
                 persistGame()
                 guard++
-                if (appPreferences.animationSpeed.aiDelayMillis > 0L) delay(180L)
+                if (wait > 0L) delay(180L)
             }
             aiThinking = false
             if (state.status == GameStatus.FINISHED) screen = Screen.END
@@ -217,13 +217,28 @@ class GameViewModel(
                 val verb = when {
                     fallback.contains("passed", ignoreCase = true) -> "passes"
                     fallback.contains("defended", ignoreCase = true) -> "defends"
+                    fallback.contains("threw in", ignoreCase = true) -> "throws in"
                     else -> "attacks"
                 }
                 "AI $actor $verb with ${move.card}"
             }
-            AiMove.Take -> "AI $actor takes"
+            AiMove.Take -> "AI $actor takes the cards"
             AiMove.Done -> "AI $actor ends the attack"
         }
+
+    private fun aiDelayMillis(state: GameState): Long {
+        if (appPreferences.animationSpeed.aiDelayMillis == 0L) return 0L
+        val base = when (state.settings.aiDifficulty) {
+            com.example.durak.game.AiDifficulty.EASY -> 500L
+            com.example.durak.game.AiDifficulty.NORMAL -> 700L
+            com.example.durak.game.AiDifficulty.HARD -> 850L
+        }
+        return when (appPreferences.animationSpeed) {
+            com.example.durak.data.AnimationSpeed.OFF -> 0L
+            com.example.durak.data.AnimationSpeed.FAST -> (base * 0.6f).toLong()
+            com.example.durak.data.AnimationSpeed.NORMAL -> base
+        }
+    }
 
     private fun persistGame() {
         gameState?.let(savedGameRepository::save)

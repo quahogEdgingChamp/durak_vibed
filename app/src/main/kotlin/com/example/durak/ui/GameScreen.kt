@@ -3,6 +3,7 @@ package com.example.durak.ui
 import android.util.Log
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
@@ -20,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -35,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -52,6 +55,7 @@ import com.example.durak.game.GameState
 import com.example.durak.ui.components.ActionBar
 import com.example.durak.ui.components.CardSize
 import com.example.durak.ui.components.CardView
+import com.example.durak.ui.components.MiniCardView
 import com.example.durak.ui.components.PlayerPanel
 import com.example.durak.ui.components.TableView
 import com.example.durak.viewmodel.GameViewModel
@@ -203,26 +207,34 @@ private fun GameInfoRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.16f), RoundedCornerShape(8.dp))
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        CardView(state.trumpCard, cardSize = CardSize(42.dp, 62.dp), style = cardStyle)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "${state.settings.gameMode.title} • Deck ${state.deckRemaining}",
-                color = Color.White.copy(alpha = 0.82f),
-                style = MaterialTheme.typography.labelMedium
+            .background(
+                Brush.horizontalGradient(listOf(Color(0xCC13291F), Color(0xAA0A1D15))),
+                RoundedCornerShape(12.dp)
             )
+            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        MiniCardView(state.trumpCard, style = cardStyle)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(prompt, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             Text(
-                "Trump ${state.trumpSuit.symbol} • Attacker P${state.attackerIndex + 1} • Defender P${state.defenderIndex + 1}",
+                "${state.settings.gameMode.title} • Deck: ${state.deckRemaining} • Trump: ${state.trumpCard}",
                 color = Color.White.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.labelSmall
             )
+            Text(
+                "Attacker P${state.attackerIndex + 1} • Defender P${state.defenderIndex + 1}",
+                color = Color.White.copy(alpha = 0.64f),
+                style = MaterialTheme.typography.labelSmall
+            )
         }
-        OutlinedButton(onClick = onMenu) { Text("Menu") }
+        Button(
+            onClick = onMenu,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5B2A86), contentColor = Color.White),
+            shape = RoundedCornerShape(10.dp)
+        ) { Text("Menu") }
     }
 }
 
@@ -237,7 +249,7 @@ private fun HumanHand(
     onTap: (Card) -> Unit
 ) {
     val scrollState = rememberScrollState()
-    val spacing = 42.dp
+    val spacing = 46.dp
     val cardSize = CardSize(68.dp, 98.dp)
     val width = if (hand.isEmpty()) 1.dp else cardSize.width + spacing * (hand.size - 1) + 18.dp
     Box(
@@ -245,7 +257,8 @@ private fun HumanHand(
             .fillMaxWidth()
             .height(128.dp)
             .horizontalScroll(scrollState)
-            .background(Color.Black.copy(alpha = 0.14f), RoundedCornerShape(10.dp))
+            .background(Color.Black.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             .padding(start = 8.dp, top = 8.dp, bottom = 8.dp)
     ) {
         Box(Modifier.requiredWidth(width).height(112.dp)) {
