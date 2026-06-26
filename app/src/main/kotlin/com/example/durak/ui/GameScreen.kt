@@ -1,27 +1,20 @@
 package com.example.durak.ui
 
 import android.util.Log
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredWidth
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -38,7 +31,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -47,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.example.durak.data.AnimationSpeed
 import com.example.durak.data.CardStyle
 import com.example.durak.game.Card
 import com.example.durak.game.DropTarget
@@ -55,11 +48,16 @@ import com.example.durak.game.GameState
 import com.example.durak.ui.components.ActionBar
 import com.example.durak.ui.components.CardSize
 import com.example.durak.ui.components.CardView
-import com.example.durak.ui.components.MiniCardView
+import com.example.durak.ui.components.GameInfoPanel
 import com.example.durak.ui.components.PlayerPanel
+import com.example.durak.ui.components.ScrollableHandView
+import com.example.durak.ui.components.TableExitAnimation
+import com.example.durak.ui.components.TableExitDirection
+import com.example.durak.ui.components.TableExitOverlay
 import com.example.durak.ui.components.TableView
 import com.example.durak.viewmodel.GameViewModel
 import com.example.durak.viewmodel.Screen
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable
@@ -70,27 +68,51 @@ fun GameScreen(viewModel: GameViewModel) {
     val dropTargetBounds = remember { mutableStateMapOf<DropTarget, Rect>() }
     var showMenu by remember { mutableStateOf(false) }
     var confirmAction by remember { mutableStateOf<ConfirmAction?>(null) }
+    var previousTable by remember { mutableStateOf(state.table) }
+    var tableExitAnimation by remember { mutableStateOf<TableExitAnimation?>(null) }
     val cardStyle = viewModel.appPreferences.cardStyle
     val legalCards = if (viewModel.appPreferences.showLegalMoveHints) viewModel.getLegalCardsForHuman() else emptySet()
+    val tableExitDuration = tableExitDurationMillis(viewModel.appPreferences.animationSpeed)
 
     LaunchedEffect(state.table) {
         dropTargetBounds.clear()
     }
 
+    LaunchedEffect(state.table, state.message, tableExitDuration) {
+        val oldTable = previousTable
+        previousTable = state.table
+        if (oldTable.isNotEmpty() && state.table.isEmpty() && tableExitDuration > 0) {
+            val direction = if (state.message.contains("took", ignoreCase = true)) {
+                TableExitDirection.TAKE
+            } else {
+                TableExitDirection.DISCARD
+            }
+            val animation = TableExitAnimation.fromTable(oldTable, direction)
+            tableExitAnimation = animation
+            try {
+                delay(tableExitDuration.toLong())
+            } finally {
+                if (tableExitAnimation == animation) tableExitAnimation = null
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0B4A33))
-            .padding(10.dp)
+            .background(Brush.verticalGradient(listOf(Color(0xFF093B2B), Color(0xFF0B4A33), Color(0xFF062E22))))
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(horizontal = 6.dp, vertical = 5.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TopOpponents(state)
-            GameInfoRow(
+            GameInfoPanel(
                 state = state,
                 prompt = viewModel.getUserPromptText(),
+                latestEvent = viewModel.latestEvent,
                 cardStyle = cardStyle,
                 onMenu = { showMenu = true }
             )
@@ -109,6 +131,12 @@ fun GameScreen(viewModel: GameViewModel) {
                         dropTargetBounds[target] = bounds
                     }
                 )
+                TableExitOverlay(
+                    animation = tableExitAnimation,
+                    cardStyle = cardStyle,
+                    durationMillis = tableExitDuration,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
             ActionBar(actions = viewModel.getAvailableActions(), onAction = { action ->
                 when (action) {
@@ -117,7 +145,7 @@ fun GameScreen(viewModel: GameViewModel) {
                     GameAction.PASS -> viewModel.passHint()
                 }
             })
-            HumanHand(
+            ScrollableHandView(
                 hand = state.players.first().hand,
                 legalCards = legalCards,
                 cardStyle = cardStyle,
@@ -194,148 +222,6 @@ private fun TopOpponents(state: GameState) {
             val index = offset + 1
             PlayerPanel(player = player, role = roleFor(state, index), modifier = Modifier.weight(1f, fill = false))
         }
-    }
-}
-
-@Composable
-private fun GameInfoRow(
-    state: GameState,
-    prompt: String,
-    cardStyle: CardStyle,
-    onMenu: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Brush.horizontalGradient(listOf(Color(0xCC13291F), Color(0xAA0A1D15))),
-                RoundedCornerShape(12.dp)
-            )
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        MiniCardView(state.trumpCard, style = cardStyle)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(prompt, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Text(
-                "${state.settings.gameMode.title} • Deck: ${state.deckRemaining} • Trump: ${state.trumpCard}",
-                color = Color.White.copy(alpha = 0.78f),
-                style = MaterialTheme.typography.labelSmall
-            )
-            Text(
-                "Attacker P${state.attackerIndex + 1} • Defender P${state.defenderIndex + 1}",
-                color = Color.White.copy(alpha = 0.64f),
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-        Button(
-            onClick = onMenu,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5B2A86), contentColor = Color.White),
-            shape = RoundedCornerShape(10.dp)
-        ) { Text("Menu") }
-    }
-}
-
-@Composable
-private fun HumanHand(
-    hand: List<Card>,
-    legalCards: Set<Card>,
-    cardStyle: CardStyle,
-    onDragStart: (Card, Offset) -> Unit,
-    onDragMove: (Offset) -> Unit,
-    onDragEnd: (Card, Offset) -> Unit,
-    onTap: (Card) -> Unit
-) {
-    val scrollState = rememberScrollState()
-    val spacing = 46.dp
-    val cardSize = CardSize(68.dp, 98.dp)
-    val width = if (hand.isEmpty()) 1.dp else cardSize.width + spacing * (hand.size - 1) + 18.dp
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(128.dp)
-            .horizontalScroll(scrollState)
-            .background(Color.Black.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-            .padding(start = 8.dp, top = 8.dp, bottom = 8.dp)
-    ) {
-        Box(Modifier.requiredWidth(width).height(112.dp)) {
-            hand.forEachIndexed { index, card ->
-                val playable = card in legalCards
-                DraggableHandCard(
-                    card = card,
-                    cardStyle = cardStyle,
-                    cardSize = cardSize,
-                    playable = playable,
-                    disabled = legalCards.isNotEmpty() && !playable,
-                    modifier = Modifier
-                        .offset(x = spacing * index, y = if (playable) 0.dp else 10.dp)
-                        .zIndex(index.toFloat()),
-                    onDragStart = onDragStart,
-                    onDragMove = onDragMove,
-                    onDragEnd = onDragEnd,
-                    onTap = onTap
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DraggableHandCard(
-    card: Card,
-    cardStyle: CardStyle,
-    cardSize: CardSize,
-    playable: Boolean,
-    disabled: Boolean,
-    modifier: Modifier,
-    onDragStart: (Card, Offset) -> Unit,
-    onDragMove: (Offset) -> Unit,
-    onDragEnd: (Card, Offset) -> Unit,
-    onTap: (Card) -> Unit
-) {
-    var dragging by remember(card) { mutableStateOf(false) }
-    var bounds by remember(card) { mutableStateOf<Rect?>(null) }
-    var currentCenter by remember(card) { mutableStateOf(Offset.Zero) }
-
-    Box(
-        modifier = modifier
-            .zIndex(if (dragging) 100f else 0f)
-            .onGloballyPositioned { bounds = it.boundsInRoot() }
-            .pointerInput(card) {
-                detectDragGestures(
-                    onDragStart = {
-                        currentCenter = bounds?.center ?: Offset.Zero
-                        dragging = true
-                        onDragStart(card, currentCenter)
-                    },
-                    onDragCancel = {
-                        dragging = false
-                    },
-                    onDragEnd = {
-                        val center = currentCenter
-                        dragging = false
-                        onDragEnd(card, center)
-                    },
-                    onDrag = { change, amount ->
-                        change.consume()
-                        currentCenter += amount
-                        onDragMove(currentCenter)
-                    }
-                )
-            }
-            .clickable { onTap(card) }
-            .animateContentSize()
-    ) {
-        CardView(
-            card = card,
-            cardSize = cardSize,
-            style = cardStyle,
-            playable = playable,
-            disabled = disabled || dragging
-        )
     }
 }
 
@@ -419,6 +305,13 @@ private data class DragState(
     val currentOffset: Offset = Offset.Zero,
     val isDragging: Boolean = false
 )
+
+private fun tableExitDurationMillis(speed: AnimationSpeed): Int =
+    when (speed) {
+        AnimationSpeed.OFF -> 0
+        AnimationSpeed.FAST -> 260
+        AnimationSpeed.NORMAL -> 430
+    }
 
 private fun resolveDropTarget(
     positionInRoot: Offset,

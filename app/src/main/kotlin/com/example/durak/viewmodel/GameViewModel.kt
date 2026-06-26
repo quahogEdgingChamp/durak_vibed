@@ -46,7 +46,7 @@ class GameViewModel(
         private set
     var gameState by mutableStateOf<GameState?>(null)
         private set
-    var snackbar by mutableStateOf("")
+    var latestEvent by mutableStateOf("")
         private set
     var aiThinking by mutableStateOf(false)
         private set
@@ -74,6 +74,7 @@ class GameViewModel(
         savedGameRepository.clear()
         hasSavedGame = false
         gameState = engine.newGame(gameOptions)
+        latestEvent = gameState?.message.orEmpty()
         screen = Screen.GAME
         scheduleAiTurns()
     }
@@ -90,6 +91,7 @@ class GameViewModel(
             return
         }
         gameState = saved
+        latestEvent = saved.message
         screen = Screen.GAME
         scheduleAiTurns()
     }
@@ -179,10 +181,6 @@ class GameViewModel(
         }
     }
 
-    fun clearSnackbar() {
-        snackbar = ""
-    }
-
     private fun scheduleAiTurns() {
         aiJob?.cancel()
         aiJob = viewModelScope.launch {
@@ -246,6 +244,6 @@ class GameViewModel(
     }
 
     private fun show(message: String) {
-        snackbar = message
+        latestEvent = message
     }
 }

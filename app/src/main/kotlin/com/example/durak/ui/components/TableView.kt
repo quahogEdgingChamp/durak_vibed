@@ -39,7 +39,7 @@ fun TableView(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 180.dp)
+            .heightIn(min = 148.dp)
             .background(
                 Brush.radialGradient(
                     listOf(Color(0x2237C985), Color(0x33000000))
