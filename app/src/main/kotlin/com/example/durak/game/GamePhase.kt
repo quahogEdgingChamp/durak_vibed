@@ -5,6 +5,7 @@ enum class GamePhase {
     HUMAN_ATTACK,
     HUMAN_DEFENSE,
     HUMAN_THROW_IN,
+    THROW_IN_BEFORE_TAKE,
     HUMAN_PASS_OR_DEFEND,
     AI_ATTACK,
     AI_DEFENSE,

@@ -53,6 +53,9 @@ class GameEngine(private val rules: GameRules = GameRules()) {
         if (state.status == GameStatus.FINISHED) return MoveResult(state, "Game is over.")
         if (target == DropTarget.None) return MoveResult(state, "Drop the card on the table.")
         return when {
+            state.isThrowInBeforeTake && target is DropTarget.Table && rules.canThrowInBeforeTake(state, playerIndex, card) ->
+                addThrowInBeforeTakeCard(state, playerIndex, card)
+            state.isThrowInBeforeTake -> MoveResult(state, "Throw in a matching-rank card or pass.")
             target is DropTarget.AttackCard && rules.canDefend(state, playerIndex, target.attackCard, card) ->
                 defend(state, playerIndex, target.attackCard, card)
             target is DropTarget.DefenseSlot && rules.canDefend(state, playerIndex, target.attackCard, card) ->
@@ -71,10 +74,84 @@ class GameEngine(private val rules: GameRules = GameRules()) {
         if (playerIndex != state.defenderIndex || state.table.isEmpty() || !state.needsDefense) {
             return MoveResult(state, "Only the defender can take during defense.")
         }
+        if (state.settings.gameMode in setOf(GameMode.CLASSIC, GameMode.CASUAL)) {
+            return startThrowInBeforeTake(state, playerIndex)
+        }
+        return finalizeTake(state, playerIndex, "Defender took ${state.tableCardsCount()} cards.")
+    }
+
+    fun passThrowInBeforeTake(state: GameState, playerIndex: Int): MoveResult {
+        if (!state.isThrowInBeforeTake || state.throwInActorIndex != playerIndex) {
+            return MoveResult(state, "You can pass only while throwing in before take.")
+        }
+        return advanceThrowInBeforeTake(
+            state.copy(
+                playersPassedThrowIn = state.playersPassedThrowIn + playerIndex,
+                message = "${state.players[playerIndex].name} passed."
+            ),
+            playerIndex
+        )
+    }
+
+    private fun startThrowInBeforeTake(state: GameState, defenderIndex: Int): MoveResult {
+        val pending = state.copy(
+            takingDefenderIndex = defenderIndex,
+            throwInActorIndex = null,
+            playersPassedThrowIn = emptySet()
+        )
+        val nextActor = nextThrowInBeforeTakeActor(pending, state.attackerIndex - 1)
+        if (nextActor == null) {
+            return finalizeTake(pending, defenderIndex, "No more throw-ins. ${state.players[defenderIndex].name} takes the cards.")
+        }
+        val next = pending.copy(
+            throwInActorIndex = nextActor,
+            message = throwInPrompt(pending, nextActor)
+        )
+        return MoveResult(withPhase(next), "Throw-ins before take.")
+    }
+
+    private fun addThrowInBeforeTakeCard(state: GameState, playerIndex: Int, card: Card): MoveResult {
+        val players = state.players.removeCard(playerIndex, card, state.trumpSuit)
+        return advanceThrowInBeforeTake(
+            state.copy(
+                players = players,
+                table = state.table + TableCard(card),
+                playersPassedThrowIn = emptySet(),
+                message = "${state.players[playerIndex].name} threw in $card."
+            ),
+            playerIndex
+        )
+    }
+
+    private fun advanceThrowInBeforeTake(state: GameState, afterIndex: Int): MoveResult {
+        val takingDefender = state.takingDefenderIndex ?: return MoveResult(state, "No pending take.")
+        if (state.table.size >= rules.maxAttackCardsThisBout(state)) {
+            return finalizeTake(state, takingDefender, "No more throw-ins. ${state.players[takingDefender].name} takes the cards.")
+        }
+        val nextActor = nextThrowInBeforeTakeActor(state, afterIndex)
+        if (nextActor == null) {
+            return finalizeTake(state, takingDefender, "No more throw-ins. ${state.players[takingDefender].name} takes the cards.")
+        }
+        val next = state.copy(
+            throwInActorIndex = nextActor,
+            message = throwInPrompt(state, nextActor)
+        )
+        return MoveResult(withPhase(next), "Next throw-in.")
+    }
+
+    private fun finalizeTake(state: GameState, defenderIndex: Int, message: String): MoveResult {
         val tableCards = state.table.flatMap { listOfNotNull(it.attack, it.defense) }
-        val players = state.players.replacePlayer(playerIndex) { it.copy(hand = sortHand(it.hand + tableCards, state.trumpSuit)) }
-        val replenished = drawAfterBattle(state.copy(players = players, table = emptyList()))
-        val nextAttacker = rules.nextActiveIndex(replenished, playerIndex) ?: playerIndex
+        val players = state.players.replacePlayer(defenderIndex) { it.copy(hand = sortHand(it.hand + tableCards, state.trumpSuit)) }
+        val replenished = drawAfterBattle(
+            state.copy(
+                players = players,
+                table = emptyList(),
+                takingDefenderIndex = null,
+                throwInActorIndex = null,
+                playersPassedThrowIn = emptySet()
+            )
+        )
+        val nextAttacker = rules.nextActiveIndex(replenished, defenderIndex) ?: defenderIndex
         val nextDefender = rules.nextActiveIndex(replenished, nextAttacker) ?: nextAttacker
         return MoveResult(
             withPhase(finishIfNeeded(
@@ -82,7 +159,7 @@ class GameEngine(private val rules: GameRules = GameRules()) {
                     attackerIndex = nextAttacker,
                     defenderIndex = nextDefender,
                     defenderHandSizeAtBoutStart = replenished.players.getOrNull(nextDefender)?.hand?.size ?: 0,
-                    message = "Defender took ${tableCards.size} cards."
+                    message = message
                 )
             )),
             "Defender picked up."
@@ -126,7 +203,12 @@ class GameEngine(private val rules: GameRules = GameRules()) {
     fun legalCards(state: GameState, playerIndex: Int): Set<Card> = rules.legalCards(state, playerIndex)
     fun legalPassCards(state: GameState, playerIndex: Int): Set<Card> = rules.getLegalTransferCards(state, playerIndex).toSet()
     fun legalDefenseCards(state: GameState, playerIndex: Int, attackCard: Card): Set<Card> = rules.getLegalDefenseCards(state, playerIndex, attackCard).toSet()
-    fun legalThrowInCards(state: GameState, playerIndex: Int): Set<Card> = rules.getLegalAddCards(state, playerIndex).toSet()
+    fun legalThrowInCards(state: GameState, playerIndex: Int): Set<Card> =
+        if (state.isThrowInBeforeTake) {
+            rules.getLegalThrowInBeforeTakeCards(state, playerIndex).toSet()
+        } else {
+            rules.getLegalAddCards(state, playerIndex).toSet()
+        }
     fun availableActions(state: GameState, playerIndex: Int): Set<GameAction> = rules.getAvailableActions(state, playerIndex)
     fun canEndAttack(state: GameState, playerIndex: Int): Boolean = rules.canEndAttack(state, playerIndex)
     fun canAnyPass(state: GameState, playerIndex: Int): Boolean = rules.canAnyTransfer(state, playerIndex)
@@ -233,6 +315,7 @@ class GameEngine(private val rules: GameRules = GameRules()) {
 
     private fun derivePhase(state: GameState): GamePhase {
         if (state.status == GameStatus.FINISHED) return GamePhase.GAME_OVER
+        if (state.isThrowInBeforeTake) return GamePhase.THROW_IN_BEFORE_TAKE
         if (state.needsDefense) {
             val canPass = rules.canAnyPass(state, state.defenderIndex)
             return if (state.defenderIndex == 0) {
@@ -254,6 +337,25 @@ class GameEngine(private val rules: GameRules = GameRules()) {
         }
         return null
     }
+
+    private fun nextThrowInBeforeTakeActor(state: GameState, afterIndex: Int): Int? {
+        for (offset in 1..state.players.size) {
+            val index = (afterIndex + offset).floorMod(state.players.size)
+            if (index in state.playersPassedThrowIn) continue
+            if (rules.hasAnyLegalThrowInBeforeTake(state, index)) return index
+        }
+        return null
+    }
+
+    private fun throwInPrompt(state: GameState, actorIndex: Int): String {
+        val takingDefender = state.takingDefenderIndex ?: state.defenderIndex
+        return when {
+            actorIndex == 0 && takingDefender == 0 -> "You are taking. Opponents may throw in."
+            actorIndex == 0 -> "${state.players[takingDefender].name} is taking. You may throw in matching cards."
+            takingDefender == 0 -> "You are taking. ${state.players[actorIndex].name} may throw in."
+            else -> "${state.players[takingDefender].name} is taking. ${state.players[actorIndex].name} may throw in."
+        }
+    }
 }
 
 data class MoveResult(val state: GameState, val message: String)
@@ -268,3 +370,9 @@ private fun List<Player>.removeCard(playerIndex: Int, card: Card, trumpSuit: Sui
 
 fun sortHand(cards: List<Card>, trumpSuit: Suit): List<Card> =
     cards.sortedWith(compareBy<Card>({ it.suit == trumpSuit }, { it.suit.ordinal }, { it.rank.strength }))
+
+private fun GameState.tableCardsCount(): Int =
+    table.sumOf { 1 + if (it.defense == null) 0 else 1 }
+
+private fun Int.floorMod(modulus: Int): Int =
+    ((this % modulus) + modulus) % modulus

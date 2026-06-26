@@ -21,6 +21,9 @@ data class GameState(
     val attackerIndex: Int,
     val defenderIndex: Int,
     val defenderHandSizeAtBoutStart: Int = players.getOrNull(defenderIndex)?.hand?.size ?: 0,
+    val takingDefenderIndex: Int? = null,
+    val throwInActorIndex: Int? = null,
+    val playersPassedThrowIn: Set<Int> = emptySet(),
     val phase: GamePhase = GamePhase.DEALING,
     val status: GameStatus = GameStatus.IN_PROGRESS,
     val loserIndex: Int? = null,
@@ -29,7 +32,8 @@ data class GameState(
 ) {
     val deckRemaining: Int get() = drawPile.size
     val needsDefense: Boolean get() = table.any { it.defense == null }
-    val currentActorIndex: Int get() = if (needsDefense) defenderIndex else attackerIndex
+    val isThrowInBeforeTake: Boolean get() = takingDefenderIndex != null
+    val currentActorIndex: Int get() = throwInActorIndex ?: if (needsDefense) defenderIndex else attackerIndex
     val activePlayerIndexes: List<Int>
         get() = players.indices.filter { players[it].hand.isNotEmpty() }
 }

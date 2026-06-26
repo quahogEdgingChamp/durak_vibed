@@ -42,6 +42,7 @@ fun PlayerPanel(
         "Defender" -> Color(0xFF7DE2D1).copy(alpha = 0.78f)
         else -> Color.White.copy(alpha = 0.12f)
     }
+    val avatar = avatarFor(player.id, player.isHuman)
     Column(
         modifier = modifier
             .width(112.dp)
@@ -56,9 +57,10 @@ fun PlayerPanel(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            AvatarBadge(avatar)
             Text(
                 player.name,
                 color = Color.White,
@@ -90,6 +92,16 @@ fun PlayerPanel(
             }
             Box(
                 modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .background(avatar.accent.copy(alpha = 0.95f), RoundedCornerShape(999.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.42f), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .zIndex(11f)
+            ) {
+                Text(avatar.shortLabel, color = Color.White, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelSmall)
+            }
+            Box(
+                modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .background(Color(0xFFFFFBF1), RoundedCornerShape(999.dp))
                     .border(1.dp, Color.Black.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
@@ -117,10 +129,38 @@ fun PlayerPanel(
 }
 
 @Composable
+private fun AvatarBadge(avatar: PlayerAvatar) {
+    Box(
+        modifier = Modifier
+            .size(27.dp)
+            .background(avatar.accent.copy(alpha = 0.24f), RoundedCornerShape(999.dp))
+            .border(1.dp, avatar.accent.copy(alpha = 0.78f), RoundedCornerShape(999.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(avatar.shortLabel, color = Color.White, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
 private fun RoleDot(color: Color) {
     Box(
         modifier = Modifier
             .size(9.dp)
             .background(color, RoundedCornerShape(50))
     )
+}
+
+private data class PlayerAvatar(
+    val shortLabel: String,
+    val accent: Color
+)
+
+private fun avatarFor(playerId: Int, isHuman: Boolean): PlayerAvatar {
+    if (isHuman) return PlayerAvatar("YOU", Color(0xFF7DE2D1))
+    return when (playerId) {
+        1 -> PlayerAvatar("A1", Color(0xFFE76F51))
+        2 -> PlayerAvatar("A2", Color(0xFF5DA9E9))
+        3 -> PlayerAvatar("A3", Color(0xFF62B36F))
+        else -> PlayerAvatar("AI", Color(0xFFB084FF))
+    }
 }

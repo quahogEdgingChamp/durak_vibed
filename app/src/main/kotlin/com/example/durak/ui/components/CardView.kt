@@ -47,7 +47,8 @@ fun CardView(
     style: CardStyle = CardStyle.CLASSIC,
     faceDown: Boolean = false,
     playable: Boolean = false,
-    disabled: Boolean = false
+    disabled: Boolean = false,
+    legalHintColor: Color = Color(0xFFFFC857)
 ) {
     val assetPath = when {
         faceDown || card == null -> CardImageProvider.cardBackAssetPath()
@@ -61,14 +62,14 @@ fun CardView(
         CardStyle.MINIMAL -> Color.White
     }
     val border = when {
-        playable -> Color(0xFFFFD54F)
+        playable -> legalHintColor
         else -> Color(0xFFD8D4C9)
     }
     Surface(
         modifier = modifier
             .size(cardSize.width, cardSize.height)
             .alpha(if (disabled) 0.45f else 1f)
-            .shadow(if (playable) 8.dp else 4.dp, shape),
+            .shadow(if (playable) 10.dp else 4.dp, shape),
         shape = shape,
         color = if (faceDown) Color(0xFF163C8C) else cardColor,
         border = BorderStroke(if (playable) 2.dp else 1.dp, border)

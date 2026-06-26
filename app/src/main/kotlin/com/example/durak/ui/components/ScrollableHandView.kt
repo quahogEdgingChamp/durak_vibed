@@ -36,6 +36,7 @@ fun ScrollableHandView(
     hand: List<Card>,
     legalCards: Set<Card>,
     cardStyle: CardStyle,
+    legalHintColor: Color,
     modifier: Modifier = Modifier,
     onDragStart: (Card, Offset) -> Unit,
     onDragMove: (Offset) -> Unit,
@@ -67,6 +68,7 @@ fun ScrollableHandView(
                     card = card,
                     cardStyle = cardStyle,
                     cardSize = cardSize,
+                    legalHintColor = legalHintColor,
                     playable = playable,
                     disabled = legalCards.isNotEmpty() && !playable,
                     modifier = Modifier
@@ -87,6 +89,7 @@ private fun DraggableHandCard(
     card: Card,
     cardStyle: CardStyle,
     cardSize: CardSize,
+    legalHintColor: Color,
     playable: Boolean,
     disabled: Boolean,
     modifier: Modifier,
@@ -133,6 +136,7 @@ private fun DraggableHandCard(
             cardSize = cardSize,
             style = cardStyle,
             playable = playable,
+            legalHintColor = legalHintColor,
             disabled = disabled || dragging
         )
     }

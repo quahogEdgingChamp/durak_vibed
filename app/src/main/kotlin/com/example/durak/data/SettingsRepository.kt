@@ -18,9 +18,18 @@ enum class CardStyle(val title: String) {
     MINIMAL("Minimal")
 }
 
+enum class LegalHintColor(val title: String, val red: Int, val green: Int, val blue: Int) {
+    GREEN("Green", 84, 214, 147),
+    BLUE("Blue", 96, 177, 255),
+    GOLD("Gold", 255, 200, 87),
+    PURPLE("Purple", 176, 132, 255),
+    RED("Red", 255, 113, 113)
+}
+
 data class AppPreferences(
     val animationSpeed: AnimationSpeed = AnimationSpeed.NORMAL,
     val cardStyle: CardStyle = CardStyle.CLASSIC,
+    val legalHintColor: LegalHintColor = LegalHintColor.GOLD,
     val showLegalMoveHints: Boolean = true,
     val confirmNewGame: Boolean = true
 )
@@ -54,6 +63,7 @@ class SettingsRepository(context: Context) : SettingsDataSource {
     override fun loadAppPreferences(): AppPreferences = AppPreferences(
         animationSpeed = prefs.getString("animationSpeed", null).enumValueOrNull<AnimationSpeed>() ?: AnimationSpeed.NORMAL,
         cardStyle = prefs.getString("cardStyle", null).enumValueOrNull<CardStyle>() ?: CardStyle.CLASSIC,
+        legalHintColor = prefs.getString("legalHintColor", null).enumValueOrNull<LegalHintColor>() ?: LegalHintColor.GOLD,
         showLegalMoveHints = prefs.getBoolean("showLegalMoveHints", true),
         confirmNewGame = prefs.getBoolean("confirmNewGame", true)
     )
@@ -62,6 +72,7 @@ class SettingsRepository(context: Context) : SettingsDataSource {
         prefs.edit()
             .putString("animationSpeed", preferences.animationSpeed.name)
             .putString("cardStyle", preferences.cardStyle.name)
+            .putString("legalHintColor", preferences.legalHintColor.name)
             .putBoolean("showLegalMoveHints", preferences.showLegalMoveHints)
             .putBoolean("confirmNewGame", preferences.confirmNewGame)
             .apply()

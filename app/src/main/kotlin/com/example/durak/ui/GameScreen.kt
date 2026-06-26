@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -68,6 +70,7 @@ fun GameScreen(viewModel: GameViewModel) {
     var dragState by remember { mutableStateOf(DragState()) }
     val dropTargetBounds = remember { mutableStateMapOf<DropTarget, Rect>() }
     val opponentBounds = remember { mutableStateMapOf<Int, Rect>() }
+    var discardBounds by remember { mutableStateOf<Rect?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var confirmAction by remember { mutableStateOf<ConfirmAction?>(null) }
     var previousState by remember { mutableStateOf(state) }
@@ -75,6 +78,7 @@ fun GameScreen(viewModel: GameViewModel) {
     var tableExitDuration by remember { mutableStateOf(0) }
     var handBounds by remember { mutableStateOf<Rect?>(null) }
     val cardStyle = viewModel.appPreferences.cardStyle
+    val legalHintColor = viewModel.appPreferences.legalHintColor.toComposeColor()
     val legalCards = if (viewModel.appPreferences.showLegalMoveHints) viewModel.getLegalCardsForHuman() else emptySet()
     val density = LocalDensity.current
 
@@ -82,7 +86,7 @@ fun GameScreen(viewModel: GameViewModel) {
         dropTargetBounds.clear()
     }
 
-    LaunchedEffect(state, viewModel.appPreferences.animationSpeed, tableBounds, handBounds) {
+    LaunchedEffect(state, viewModel.appPreferences.animationSpeed, tableBounds, handBounds, discardBounds) {
         val oldState = previousState
         previousState = state
         val oldTable = oldState.table
@@ -99,7 +103,7 @@ fun GameScreen(viewModel: GameViewModel) {
             val targetBounds = when (direction) {
                 TableExitDirection.HUMAN_TAKE -> handBounds
                 TableExitDirection.AI_TAKE -> opponentBounds[takingPlayer]
-                TableExitDirection.DISCARD -> null
+                TableExitDirection.DISCARD -> discardBounds
             }
             val source = tableBounds?.center
             val target = targetBounds?.center
@@ -161,10 +165,19 @@ fun GameScreen(viewModel: GameViewModel) {
                     table = state.table,
                     cardStyle = cardStyle,
                     highlighted = dragState.isDragging,
+                    highlightColor = legalHintColor,
                     modifier = Modifier.fillMaxSize(),
                     onTargetBoundsChanged = { target, bounds ->
                         dropTargetBounds[target] = bounds
                     }
+                )
+                DiscardPileMarker(
+                    cardStyle = cardStyle,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 7.dp)
+                        .onGloballyPositioned { discardBounds = it.boundsInRoot() }
+                        .zIndex(4f)
                 )
                 TableExitOverlay(
                     animation = tableExitAnimation,
@@ -177,13 +190,14 @@ fun GameScreen(viewModel: GameViewModel) {
                 when (action) {
                     GameAction.DONE -> viewModel.done()
                     GameAction.TAKE -> viewModel.take()
-                    GameAction.PASS -> viewModel.passHint()
+                    GameAction.PASS -> viewModel.pass()
                 }
             })
             ScrollableHandView(
                 hand = state.players.first().hand,
                 legalCards = legalCards,
                 cardStyle = cardStyle,
+                legalHintColor = legalHintColor,
                 modifier = Modifier.onGloballyPositioned { handBounds = it.boundsInRoot() },
                 onDragStart = { card, center ->
                     Log.d("DurakDrag", "drag start card=$card center=$center")
@@ -206,7 +220,7 @@ fun GameScreen(viewModel: GameViewModel) {
             )
         }
 
-        DragOverlay(dragState = dragState, cardStyle = cardStyle)
+        DragOverlay(dragState = dragState, cardStyle = cardStyle, legalHintColor = legalHintColor)
     }
 
     if (showMenu) {
@@ -271,7 +285,7 @@ private fun TopOpponents(
 }
 
 @Composable
-private fun DragOverlay(dragState: DragState, cardStyle: CardStyle) {
+private fun DragOverlay(dragState: DragState, cardStyle: CardStyle, legalHintColor: Color) {
     val card = dragState.card ?: return
     if (!dragState.isDragging) return
     val size = CardSize(68.dp, 98.dp)
@@ -283,6 +297,7 @@ private fun DragOverlay(dragState: DragState, cardStyle: CardStyle) {
         cardSize = size,
         style = cardStyle,
         playable = true,
+        legalHintColor = legalHintColor,
         modifier = Modifier
             .offset {
                 IntOffset(
@@ -292,6 +307,39 @@ private fun DragOverlay(dragState: DragState, cardStyle: CardStyle) {
             }
             .zIndex(500f)
     )
+}
+
+@Composable
+private fun DiscardPileMarker(cardStyle: CardStyle, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(width = 54.dp, height = 76.dp)
+            .background(Color.Black.copy(alpha = 0.24f), RoundedCornerShape(10.dp))
+            .padding(6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CardView(
+            card = null,
+            faceDown = true,
+            cardSize = CardSize(33.dp, 47.dp),
+            style = cardStyle,
+            modifier = Modifier.offset(x = (-5).dp, y = 4.dp)
+        )
+        CardView(
+            card = null,
+            faceDown = true,
+            cardSize = CardSize(33.dp, 47.dp),
+            style = cardStyle,
+            modifier = Modifier.offset(x = 3.dp, y = (-3).dp)
+        )
+        Text(
+            "Bita",
+            color = Color.White.copy(alpha = 0.82f),
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
 }
 
 @Composable

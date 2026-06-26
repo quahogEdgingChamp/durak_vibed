@@ -12,6 +12,7 @@ class AIPlayer(
         }
 
     private fun chooseEasyMove(state: GameState, playerIndex: Int): AiMove {
+        if (state.isThrowInBeforeTake) return chooseThrowInBeforeTakeMove(state, playerIndex)
         if (state.needsDefense && playerIndex == state.defenderIndex) {
             val attack = firstOpenAttack(state) ?: return AiMove.Done
             val defenses = rules.getLegalDefenseCards(state, playerIndex, attack)
@@ -23,6 +24,7 @@ class AIPlayer(
     }
 
     private fun chooseNormalMove(state: GameState, playerIndex: Int): AiMove {
+        if (state.isThrowInBeforeTake) return chooseThrowInBeforeTakeMove(state, playerIndex)
         if (state.needsDefense && playerIndex == state.defenderIndex) {
             val pass = normalPass(state, playerIndex)
             if (pass != null) return AiMove.Play(pass)
@@ -42,6 +44,7 @@ class AIPlayer(
     }
 
     private fun chooseHardMove(state: GameState, playerIndex: Int): AiMove {
+        if (state.isThrowInBeforeTake) return chooseThrowInBeforeTakeMove(state, playerIndex)
         if (state.needsDefense && playerIndex == state.defenderIndex) {
             val pass = rules.getLegalTransferCards(state, playerIndex)
                 .maxByOrNull { evaluator.scorePassMove(state, playerIndex, it) }
@@ -62,6 +65,13 @@ class AIPlayer(
             }
             if (state.drawPile.isEmpty()) score + card.rank.strength else score
         }
+        return chosen?.let { AiMove.Play(it) } ?: AiMove.Done
+    }
+
+    private fun chooseThrowInBeforeTakeMove(state: GameState, playerIndex: Int): AiMove {
+        val legal = rules.getLegalThrowInBeforeTakeCards(state, playerIndex)
+        val nonTrump = legal.filter { it.suit != state.trumpSuit }
+        val chosen = nonTrump.minWithOrNull(cardComparator(state.trumpSuit))
         return chosen?.let { AiMove.Play(it) } ?: AiMove.Done
     }
 

@@ -130,6 +130,113 @@ class GameRulesTest {
     }
 
     @Test
+    fun defenderTakeStartsThrowInBeforeTakeInsteadOfPickingUpImmediately() {
+        val engine = GameEngine()
+        val state = throwInBeforeTakeState(GameMode.CLASSIC)
+
+        val result = engine.take(state, 1).state
+
+        assertEquals(GamePhase.THROW_IN_BEFORE_TAKE, result.phase)
+        assertEquals(1, result.takingDefenderIndex)
+        assertEquals(0, result.throwInActorIndex)
+        assertEquals(state.table, result.table)
+        assertEquals(state.players[1].hand, result.players[1].hand)
+    }
+
+    @Test
+    fun attackerCanThrowInVisibleRankBeforeDefenderTakes() {
+        val engine = GameEngine()
+        val pending = engine.take(throwInBeforeTakeState(GameMode.CLASSIC), 1).state
+        val throwIn = Card(Suit.HEARTS, Rank.TEN)
+
+        val result = engine.playCard(pending, 0, throwIn, DropTarget.Table).state
+
+        assertEquals(TableCard(throwIn), result.table.last())
+        assertFalse(throwIn in result.players[0].hand)
+        assertEquals(2, result.throwInActorIndex)
+    }
+
+    @Test
+    fun nonAttackerCanThrowInBeforeDefenderTakesInThreePlayerGame() {
+        val engine = GameEngine()
+        val pending = engine.take(throwInBeforeTakeState(GameMode.CLASSIC), 1).state
+        val afterAttackerPass = engine.passThrowInBeforeTake(pending, 0).state
+        val throwIn = Card(Suit.CLUBS, Rank.NINE)
+
+        val result = engine.playCard(afterAttackerPass, 2, throwIn, DropTarget.Table).state
+
+        assertEquals(TableCard(throwIn), result.table.last())
+        assertFalse(throwIn in result.players[2].hand)
+    }
+
+    @Test
+    fun invalidRankCannotBeThrownInBeforeTake() {
+        val engine = GameEngine()
+        val pending = engine.take(throwInBeforeTakeState(GameMode.CLASSIC), 1).state
+
+        val result = engine.playCard(pending, 0, Card(Suit.HEARTS, Rank.ACE), DropTarget.Table).state
+
+        assertEquals(pending, result)
+    }
+
+    @Test
+    fun takingDefenderCannotThrowInToThemselves() {
+        val engine = GameEngine()
+        val pending = engine.take(throwInBeforeTakeState(GameMode.CLASSIC), 1).state
+
+        assertFalse(rules.canThrowInBeforeTake(pending, 1, Card(Suit.CLUBS, Rank.TEN)))
+        assertEquals(pending, engine.playCard(pending, 1, Card(Suit.CLUBS, Rank.TEN), DropTarget.Table).state)
+    }
+
+    @Test
+    fun afterAllThrowInPlayersPassDefenderTakesCardsAndNextAttackerFollowsDefender() {
+        val engine = GameEngine()
+        val pending = engine.take(throwInBeforeTakeState(GameMode.CLASSIC), 1).state
+        val afterAttackerThrowIn = engine.playCard(pending, 0, Card(Suit.HEARTS, Rank.TEN), DropTarget.Table).state
+
+        val result = engine.passThrowInBeforeTake(afterAttackerThrowIn, 2).state
+
+        assertTrue(result.table.isEmpty())
+        assertEquals(null, result.takingDefenderIndex)
+        assertTrue(Card(Suit.SPADES, Rank.NINE) in result.players[1].hand)
+        assertTrue(Card(Suit.SPADES, Rank.TEN) in result.players[1].hand)
+        assertTrue(Card(Suit.HEARTS, Rank.TEN) in result.players[1].hand)
+        assertEquals(2, result.attackerIndex)
+    }
+
+    @Test
+    fun classicAndCasualAllowThrowInBeforeTakeButTransferDoesNot() {
+        val engine = GameEngine()
+
+        val classic = engine.take(throwInBeforeTakeState(GameMode.CLASSIC), 1).state
+        val casual = engine.take(throwInBeforeTakeState(GameMode.CASUAL), 1).state
+        val transfer = engine.take(throwInBeforeTakeState(GameMode.TRANSFER), 1).state
+
+        assertEquals(GamePhase.THROW_IN_BEFORE_TAKE, classic.phase)
+        assertEquals(GamePhase.THROW_IN_BEFORE_TAKE, casual.phase)
+        assertFalse(rules.canAddMatchingRankCard(transfer, 0, Card(Suit.HEARTS, Rank.TEN)))
+        assertEquals(null, transfer.takingDefenderIndex)
+        assertTrue(transfer.table.isEmpty())
+    }
+
+    @Test
+    fun takingDefenderDrawsLastAfterPendingTakeIsFinalized() {
+        val engine = GameEngine()
+        val state = drawOrderTakeState()
+        val pending = engine.take(state, 1).state
+        val afterThrowIn = engine.playCard(pending, 0, Card(Suit.HEARTS, Rank.NINE), DropTarget.Table).state
+
+        val result = engine.passThrowInBeforeTake(afterThrowIn, 2).state
+
+        assertTrue(Card(Suit.CLUBS, Rank.SEVEN) in result.players[0].hand)
+        assertTrue(Card(Suit.CLUBS, Rank.EIGHT) in result.players[0].hand)
+        assertTrue(Card(Suit.CLUBS, Rank.NINE) in result.players[2].hand)
+        assertTrue(Card(Suit.CLUBS, Rank.TEN) in result.players[1].hand)
+        assertTrue(Card(Suit.CLUBS, Rank.JACK) in result.players[1].hand)
+        assertEquals(2, result.attackerIndex)
+    }
+
+    @Test
     fun casualTransferIsForbiddenAfterDefenseStarts() {
         val state = partiallyDefendedTransferState(GameMode.CASUAL)
 
@@ -266,6 +373,75 @@ class GameRulesTest {
             attackerIndex = 0,
             defenderIndex = 1,
             defenderHandSizeAtBoutStart = 1
+        )
+    }
+
+    private fun throwInBeforeTakeState(mode: GameMode): GameState {
+        val trump = Card(Suit.DIAMONDS, Rank.SIX)
+        return GameState(
+            settings = GameSettings(deckMode = DeckMode.CARDS_36, gameMode = mode, playerCount = 3),
+            players = listOf(
+                Player(0, "You", true, listOf(Card(Suit.HEARTS, Rank.TEN), Card(Suit.HEARTS, Rank.ACE))),
+                Player(1, "AI 1", false, listOf(Card(Suit.CLUBS, Rank.TEN))),
+                Player(2, "AI 2", false, listOf(Card(Suit.CLUBS, Rank.NINE), Card(Suit.CLUBS, Rank.ACE)))
+            ),
+            drawPile = List(12) { Card(Suit.SPADES, Rank.SIX) },
+            trumpCard = trump,
+            trumpSuit = trump.suit,
+            table = listOf(
+                TableCard(Card(Suit.SPADES, Rank.NINE), Card(Suit.SPADES, Rank.TEN)),
+                TableCard(Card(Suit.DIAMONDS, Rank.TEN))
+            ),
+            attackerIndex = 0,
+            defenderIndex = 1,
+            defenderHandSizeAtBoutStart = 4
+        )
+    }
+
+    private fun drawOrderTakeState(): GameState {
+        val trump = Card(Suit.DIAMONDS, Rank.SIX)
+        return GameState(
+            settings = GameSettings(deckMode = DeckMode.CARDS_36, gameMode = GameMode.CLASSIC, playerCount = 3),
+            players = listOf(
+                Player(
+                    0,
+                    "You",
+                    true,
+                    listOf(
+                        Card(Suit.HEARTS, Rank.NINE),
+                        Card(Suit.SPADES, Rank.SIX),
+                        Card(Suit.HEARTS, Rank.SIX),
+                        Card(Suit.DIAMONDS, Rank.SEVEN),
+                        Card(Suit.DIAMONDS, Rank.EIGHT)
+                    )
+                ),
+                Player(1, "AI 1", false, emptyList()),
+                Player(
+                    2,
+                    "AI 2",
+                    false,
+                    listOf(
+                        Card(Suit.SPADES, Rank.SEVEN),
+                        Card(Suit.HEARTS, Rank.SEVEN),
+                        Card(Suit.DIAMONDS, Rank.NINE),
+                        Card(Suit.SPADES, Rank.EIGHT),
+                        Card(Suit.HEARTS, Rank.EIGHT)
+                    )
+                )
+            ),
+            drawPile = listOf(
+                Card(Suit.CLUBS, Rank.SEVEN),
+                Card(Suit.CLUBS, Rank.EIGHT),
+                Card(Suit.CLUBS, Rank.NINE),
+                Card(Suit.CLUBS, Rank.TEN),
+                Card(Suit.CLUBS, Rank.JACK)
+            ),
+            trumpCard = trump,
+            trumpSuit = trump.suit,
+            table = listOf(TableCard(Card(Suit.SPADES, Rank.NINE))),
+            attackerIndex = 0,
+            defenderIndex = 1,
+            defenderHandSizeAtBoutStart = 3
         )
     }
 

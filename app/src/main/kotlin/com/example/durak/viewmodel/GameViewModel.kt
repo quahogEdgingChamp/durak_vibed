@@ -124,6 +124,19 @@ class GameViewModel(
         scheduleAiTurns()
     }
 
+    fun pass() {
+        val state = gameState ?: return
+        if (state.isThrowInBeforeTake) {
+            val result = engine.passThrowInBeforeTake(state, 0)
+            gameState = result.state
+            show(result.state.message.ifBlank { result.message })
+            persistGame()
+            scheduleAiTurns()
+        } else {
+            passHint()
+        }
+    }
+
     fun passHint() {
         val cards = getLegalPassCardsForHuman()
         if (cards.isEmpty()) show("Transfer is not legal now.") else show("Drag a matching-rank card to the table to transfer.")
@@ -155,6 +168,15 @@ class GameViewModel(
             GamePhase.HUMAN_DEFENSE -> "Your defense"
             GamePhase.HUMAN_PASS_OR_DEFEND -> "Your defense"
             GamePhase.HUMAN_THROW_IN -> "Choose a card to add"
+            GamePhase.THROW_IN_BEFORE_TAKE -> {
+                if (state.currentActorIndex == 0 && state.takingDefenderIndex != 0) {
+                    "Throw in matching cards or pass"
+                } else if (state.takingDefenderIndex == 0) {
+                    "Opponents may throw in"
+                } else {
+                    "AI is thinking..."
+                }
+            }
             GamePhase.AI_ATTACK, GamePhase.AI_DEFENSE, GamePhase.AI_THROW_IN, GamePhase.AI_PASS_OR_DEFEND -> "AI is thinking..."
             GamePhase.ROUND_RESOLUTION -> "Resolving the round..."
             GamePhase.GAME_OVER -> "Game over"
@@ -171,15 +193,20 @@ class GameViewModel(
                 val wait = aiDelayMillis(state)
                 if (wait > 0L) delay(wait)
                 val actor = state.currentActorIndex
+                val wasThrowInBeforeTake = state.isThrowInBeforeTake
                 val move = ai.chooseMove(state, actor)
                 val result = when (move) {
                     is AiMove.Play -> engine.playCard(state, actor, move.card)
                     AiMove.Take -> engine.take(state, actor)
-                    AiMove.Done -> engine.endAttack(state, actor)
+                    AiMove.Done -> if (state.isThrowInBeforeTake) {
+                        engine.passThrowInBeforeTake(state, actor)
+                    } else {
+                        engine.endAttack(state, actor)
+                    }
                 }
                 state = result.state
                 gameState = state
-                show(describeAiMove(actor, move, state.message.ifBlank { result.message }))
+                show(describeAiMove(actor, move, result.state.message.ifBlank { result.message }, wasThrowInBeforeTake = wasThrowInBeforeTake))
                 persistGame()
                 guard++
                 val afterMovePause = aiAfterMovePauseMillis()
@@ -190,21 +217,32 @@ class GameViewModel(
         }
     }
 
-    private fun describeAiMove(actor: Int, move: AiMove, fallback: String): String =
+    private fun describeAiMove(actor: Int, move: AiMove, fallback: String, wasThrowInBeforeTake: Boolean = false): String =
         when (move) {
             is AiMove.Play -> {
-                val verb = when {
-                    fallback.contains("passed", ignoreCase = true) -> "passes"
-                    fallback.contains("transferred", ignoreCase = true) -> "transfers"
-                    fallback.contains("defended", ignoreCase = true) -> "defends"
-                    fallback.contains("added", ignoreCase = true) -> "adds"
-                    fallback.contains("threw in", ignoreCase = true) -> "adds"
-                    else -> "attacks"
+                if (wasThrowInBeforeTake) {
+                    "AI $actor throws in with ${move.card}"
+                } else {
+                    val verb = when {
+                        fallback.contains("passed", ignoreCase = true) -> "passes"
+                        fallback.contains("transferred", ignoreCase = true) -> "transfers"
+                        fallback.contains("defended", ignoreCase = true) -> "defends"
+                        fallback.contains("added", ignoreCase = true) -> "adds"
+                        fallback.contains("threw in", ignoreCase = true) -> "adds"
+                        else -> "attacks"
+                    }
+                    "AI $actor $verb with ${move.card}"
                 }
-                "AI $actor $verb with ${move.card}"
             }
-            AiMove.Take -> "AI $actor takes the cards"
-            AiMove.Done -> "AI $actor ends the attack"
+            AiMove.Take -> if (
+                fallback.contains("is taking", ignoreCase = true) ||
+                fallback.contains("throw-ins", ignoreCase = true)
+            ) {
+                fallback
+            } else {
+                "AI $actor takes the cards"
+            }
+            AiMove.Done -> if (wasThrowInBeforeTake) fallback else "AI $actor ends the attack"
         }
 
     private fun aiDelayMillis(state: GameState): Long {

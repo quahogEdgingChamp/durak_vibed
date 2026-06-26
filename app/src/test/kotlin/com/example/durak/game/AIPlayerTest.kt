@@ -129,7 +129,11 @@ class AIPlayerTest {
         when (move) {
             is AiMove.Play -> assertTrue(engine.playCard(state, playerId, move.card).state != state)
             AiMove.Take -> assertTrue(state.currentActorIndex == playerId && state.table.isNotEmpty() && state.needsDefense)
-            AiMove.Done -> assertTrue(rules.canEndAttack(state, playerId) || state.currentActorIndex != playerId)
+            AiMove.Done -> assertTrue(
+                rules.canEndAttack(state, playerId) ||
+                    state.isThrowInBeforeTake ||
+                    state.currentActorIndex != playerId
+            )
         }
     }
 

@@ -1,7 +1,8 @@
 package com.example.durak.ui.components
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -43,10 +44,11 @@ fun TableView(
     table: List<TableCard>,
     cardStyle: CardStyle,
     highlighted: Boolean,
+    highlightColor: Color,
     modifier: Modifier = Modifier,
     onTargetBoundsChanged: (DropTarget, Rect) -> Unit = { _, _ -> }
 ) {
-    val border = if (highlighted) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.23f)
+    val border = if (highlighted) highlightColor else Color.White.copy(alpha = 0.23f)
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -55,6 +57,10 @@ fun TableView(
                 Brush.radialGradient(
                     listOf(Color(0x2237C985), Color(0x33000000))
                 ),
+                RoundedCornerShape(14.dp)
+            )
+            .background(
+                if (highlighted) highlightColor.copy(alpha = 0.10f) else Color.Transparent,
                 RoundedCornerShape(14.dp)
             )
             .border(if (highlighted) 3.dp else 1.dp, border, RoundedCornerShape(14.dp))
@@ -102,7 +108,10 @@ private fun TablePairView(
     }
     val defenseProgress by animateFloatAsState(
         targetValue = if (defenseCard != null && defensePlaced) 1f else 0f,
-        animationSpec = tween(durationMillis = AnimationDurations.DefendMs),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
         label = "defensePlacement"
     )
     Box(
@@ -134,9 +143,11 @@ private fun TablePairView(
                     .offset(x = defenseOffsetX, y = defenseOffsetY)
                     .graphicsLayer {
                         alpha = defenseProgress
+                        translationX = (1f - defenseProgress) * -8f
                         translationY = (1f - defenseProgress) * -18f
-                        scaleX = 0.94f + defenseProgress * 0.06f
-                        scaleY = 0.94f + defenseProgress * 0.06f
+                        scaleX = 0.92f + defenseProgress * 0.08f
+                        scaleY = 0.92f + defenseProgress * 0.08f
+                        shadowElevation = 5f + defenseProgress * 6f
                     }
                     .zIndex(1f)
             )

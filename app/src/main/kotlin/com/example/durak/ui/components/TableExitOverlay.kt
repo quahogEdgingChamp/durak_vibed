@@ -6,7 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -83,18 +82,30 @@ fun TableExitOverlay(
     FlowRow(
         modifier = modifier
             .fillMaxSize()
-            .offset(x = x.dp, y = y.dp)
-            .graphicsLayer {
-                scaleX = 1f - progress * if (current.direction == TableExitDirection.DISCARD) 0.18f else 0.08f
-                scaleY = 1f - progress * if (current.direction == TableExitDirection.DISCARD) 0.18f else 0.08f
-            }
             .alpha(1f - progress)
             .zIndex(20f),
         horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterVertically)
     ) {
-        current.cards.forEach { card ->
-            CardView(card = card, cardSize = CardSize(48.dp, 70.dp), style = cardStyle)
+        current.cards.forEachIndexed { index, card ->
+            val spread = if (current.direction == TableExitDirection.DISCARD) {
+                (index - (current.cards.lastIndex / 2f)) * 5f * progress
+            } else {
+                0f
+            }
+            CardView(
+                card = card,
+                cardSize = CardSize(48.dp, 70.dp),
+                style = cardStyle,
+                modifier = Modifier
+                    .graphicsLayer {
+                        translationX = x + spread
+                        translationY = y - index * 2f * progress
+                        rotationZ = if (current.direction == TableExitDirection.DISCARD) (index - 1) * 3f * progress else 0f
+                        scaleX = 1f - progress * if (current.direction == TableExitDirection.DISCARD) 0.24f else 0.08f
+                        scaleY = 1f - progress * if (current.direction == TableExitDirection.DISCARD) 0.24f else 0.08f
+                    }
+            )
         }
     }
 }
