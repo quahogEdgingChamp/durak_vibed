@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.durak.data.AnimationSpeed
+import com.example.durak.data.CardBackStyle
 import com.example.durak.data.CardStyle
 import com.example.durak.game.Card
 import com.example.durak.game.DropTarget
@@ -78,6 +79,7 @@ fun GameScreen(viewModel: GameViewModel) {
     var tableExitDuration by remember { mutableStateOf(0) }
     var handBounds by remember { mutableStateOf<Rect?>(null) }
     val cardStyle = viewModel.appPreferences.cardStyle
+    val cardBackStyle = viewModel.appPreferences.cardBackStyle
     val legalHintColor = viewModel.appPreferences.legalHintColor.toComposeColor()
     val legalCards = if (viewModel.appPreferences.showLegalMoveHints) viewModel.getLegalCardsForHuman() else emptySet()
     val density = LocalDensity.current
@@ -147,6 +149,7 @@ fun GameScreen(viewModel: GameViewModel) {
         ) {
             TopOpponents(
                 state = state,
+                cardBackStyle = cardBackStyle,
                 onBoundsChanged = { index, bounds -> opponentBounds[index] = bounds }
             )
             GameInfoPanel(
@@ -174,6 +177,7 @@ fun GameScreen(viewModel: GameViewModel) {
                 )
                 DiscardPileMarker(
                     cardStyle = cardStyle,
+                    cardBackStyle = cardBackStyle,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .padding(end = 7.dp)
@@ -266,6 +270,7 @@ fun GameScreen(viewModel: GameViewModel) {
 @Composable
 private fun TopOpponents(
     state: GameState,
+    cardBackStyle: CardBackStyle,
     onBoundsChanged: (Int, Rect) -> Unit
 ) {
     Row(
@@ -277,6 +282,7 @@ private fun TopOpponents(
             PlayerPanel(
                 player = player,
                 role = roleFor(state, index),
+                cardBackStyle = cardBackStyle,
                 modifier = Modifier
                     .weight(1f, fill = false)
                     .onGloballyPositioned { onBoundsChanged(index, it.boundsInRoot()) }
@@ -311,7 +317,11 @@ private fun DragOverlay(dragState: DragState, cardStyle: CardStyle, legalHintCol
 }
 
 @Composable
-private fun DiscardPileMarker(cardStyle: CardStyle, modifier: Modifier = Modifier) {
+private fun DiscardPileMarker(
+    cardStyle: CardStyle,
+    cardBackStyle: CardBackStyle,
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier
             .size(width = 54.dp, height = 76.dp)
@@ -322,6 +332,7 @@ private fun DiscardPileMarker(cardStyle: CardStyle, modifier: Modifier = Modifie
         CardView(
             card = null,
             faceDown = true,
+            cardBackStyle = cardBackStyle,
             cardSize = CardSize(33.dp, 47.dp),
             style = cardStyle,
             modifier = Modifier.offset(x = (-5).dp, y = 4.dp)
@@ -329,6 +340,7 @@ private fun DiscardPileMarker(cardStyle: CardStyle, modifier: Modifier = Modifie
         CardView(
             card = null,
             faceDown = true,
+            cardBackStyle = cardBackStyle,
             cardSize = CardSize(33.dp, 47.dp),
             style = cardStyle,
             modifier = Modifier.offset(x = 3.dp, y = (-3).dp)

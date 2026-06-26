@@ -26,8 +26,9 @@ permission.
 - Casual mode: both transfers and matching-rank throw-ins allowed.
 - Easy, Normal, and Hard AI difficulty.
 - Custom drawn card UI.
-- Bundled local card image assets from `poker-box-qr.zip`.
-- Android launcher icon generated from `new.png`.
+- Bundled local card image assets from `design_assets/poker-box-qr.zip`.
+- Android launcher icon generated from `design_assets/new.png`.
+- Selectable card back designs loaded from `app/src/main/assets/card_backs/`.
 - Drag cards from your hand to the table to attack, defend, add matching ranks, or transfer.
 - Contextual actions for `Done`, `Take`, and `Pass`.
 - Local settings for AI/table animation speed, card style, hint color, hints, and confirmations.
@@ -47,11 +48,15 @@ Durak is privacy-friendly by design:
 
 ## Assets
 
-Card faces and backs are bundled under `app/src/main/assets/cards/` and are
-loaded locally at runtime. They were generated from the SVG files in
-`poker-box-qr.zip`.
+Card faces are bundled under `app/src/main/assets/cards/` and are loaded
+locally at runtime. They were generated from the SVG files in
+`design_assets/poker-box-qr.zip`.
 
-Launcher icon resources are generated from the root `new.png` file.
+Selectable card backs are bundled under `app/src/main/assets/card_backs/`.
+The existing `app/src/main/assets/cards/back.png` remains as a fallback.
+
+Reusable/source art archives are kept under `design_assets/`, not in the
+project root. Launcher icon resources are generated from `design_assets/new.png`.
 
 ## Build From Source
 
@@ -80,6 +85,7 @@ Release APKs are attached to GitHub Releases, not stored in the repository root.
 - The speed setting controls AI throw timing and table card movement into take/discard targets.
 - Hand cards support tap-to-play and drag-to-drop.
 - The game info panel shows deck, table, and bita counts while omitting attacker/defender text to keep the prompt and event text readable.
+- Card back designs can be selected in Settings and are used for opponent cards and other face-down cards.
 
 Run unit tests:
 

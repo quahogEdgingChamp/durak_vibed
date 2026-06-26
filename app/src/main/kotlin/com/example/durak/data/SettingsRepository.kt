@@ -18,6 +18,22 @@ enum class CardStyle(val title: String) {
     MINIMAL("Minimal")
 }
 
+enum class CardBackStyle(
+    val id: String,
+    val displayName: String,
+    val assetPath: String
+) {
+    CLASSIC("classic", "Classic", "card_backs/classic.png"),
+    BLUE("blue", "Blue", "card_backs/blue.png"),
+    RED("red", "Red", "card_backs/red.png"),
+    ORNAMENT("ornament", "Ornament", "card_backs/ornament.png"),
+    DARK("dark", "Dark", "card_backs/dark.png");
+
+    companion object {
+        const val fallbackAssetPath = "cards/back.png"
+    }
+}
+
 enum class LegalHintColor(val title: String, val red: Int, val green: Int, val blue: Int) {
     GREEN("Green", 84, 214, 147),
     BLUE("Blue", 96, 177, 255),
@@ -29,6 +45,7 @@ enum class LegalHintColor(val title: String, val red: Int, val green: Int, val b
 data class AppPreferences(
     val animationSpeed: AnimationSpeed = AnimationSpeed.NORMAL,
     val cardStyle: CardStyle = CardStyle.CLASSIC,
+    val cardBackStyle: CardBackStyle = CardBackStyle.CLASSIC,
     val legalHintColor: LegalHintColor = LegalHintColor.GOLD,
     val showLegalMoveHints: Boolean = true,
     val confirmNewGame: Boolean = true
@@ -63,6 +80,7 @@ class SettingsRepository(context: Context) : SettingsDataSource {
     override fun loadAppPreferences(): AppPreferences = AppPreferences(
         animationSpeed = prefs.getString("animationSpeed", null).enumValueOrNull<AnimationSpeed>() ?: AnimationSpeed.NORMAL,
         cardStyle = prefs.getString("cardStyle", null).enumValueOrNull<CardStyle>() ?: CardStyle.CLASSIC,
+        cardBackStyle = prefs.getString("cardBackStyle", null).enumValueOrNull<CardBackStyle>() ?: CardBackStyle.CLASSIC,
         legalHintColor = prefs.getString("legalHintColor", null).enumValueOrNull<LegalHintColor>() ?: LegalHintColor.GOLD,
         showLegalMoveHints = prefs.getBoolean("showLegalMoveHints", true),
         confirmNewGame = prefs.getBoolean("confirmNewGame", true)
@@ -72,6 +90,7 @@ class SettingsRepository(context: Context) : SettingsDataSource {
         prefs.edit()
             .putString("animationSpeed", preferences.animationSpeed.name)
             .putString("cardStyle", preferences.cardStyle.name)
+            .putString("cardBackStyle", preferences.cardBackStyle.name)
             .putString("legalHintColor", preferences.legalHintColor.name)
             .putBoolean("showLegalMoveHints", preferences.showLegalMoveHints)
             .putBoolean("confirmNewGame", preferences.confirmNewGame)

@@ -38,6 +38,10 @@ Recent local changes on 2026-06-26:
 - Simplified the game info panel by removing attacker/defender text; it now prioritizes prompt, mode, deck/table/bita count, trump, and latest event.
 - Animation speed now has exactly three modes: Fast, Normal, Slow.
 - Animation speed controls AI card timing and table card motion into take/discard/bita targets.
+- Loose root image/source assets were moved into `design_assets/`.
+- Runtime selectable card backs were added under `app/src/main/assets/card_backs/`.
+- Settings now include a persisted Card back choice with preview thumbnails.
+- Face-down cards use the selected card back and fall back to `cards/back.png` if needed.
 - Release APKs are attached to GitHub Releases as `durak-vibed-debug.apk`; APKs should not be kept in the repo root.
 
 ## What The App Is
@@ -62,7 +66,7 @@ Screens are controlled manually by `GameViewModel.screen`; there is no Navigatio
 - `MENU`: main menu with New Game, Rules, and Settings.
 - `NEW_GAME`: deck size, game mode, player count, AI difficulty, and Start Game.
 - `RULES`: static explanation of Classic, Transfer, Casual, attack limits, decks, and drag/drop basics.
-- `SETTINGS`: animation speed, card style, legal hint color, legal move hints, confirm new game.
+- `SETTINGS`: animation speed, card style, card back, legal hint color, legal move hints, confirm new game.
 - `GAME`: main table, opponents, compact info panel, action bar, human hand, drag overlay, discard marker, pause menu.
 - `END`: game result plus Play Again and Main Menu.
 
@@ -166,12 +170,15 @@ From `app/build.gradle.kts`:
 
 ## Assets
 
-- Card PNG assets live in `app/src/main/assets/cards/`.
+- Card face PNG assets live in `app/src/main/assets/cards/`.
+- Selectable card back PNG assets live in `app/src/main/assets/card_backs/`.
 - Card asset names are like `AS.png`, `10D.png`, `back.png`.
 - `CardImageProvider` maps `Card` objects to `cards/{rank}{suit}.png`.
-- If an asset cannot load, `CardView` falls back to a Compose-drawn card face/back.
-- The root `poker-box-qr.zip` is the source archive for bundled card assets.
-- The root `new.png` was used to generate launcher icons.
+- `CardImageProvider` maps selected card backs to `card_backs/{id}.png`.
+- If a selected card back cannot load, `CardView` falls back to `cards/back.png`, then to the Compose-drawn card back.
+- `design_assets/poker-box-qr.zip` is the source archive for bundled card assets.
+- `design_assets/playing_cards_back_side_vectors.zip` is the source archive for selectable card back designs.
+- `design_assets/new.png` was used to generate launcher icons.
 - Launcher icons are under `app/src/main/res/mipmap-*` and `app/src/main/res/drawable/ic_launcher_foreground.png`.
 
 ## Game Settings
@@ -205,6 +212,7 @@ App preferences:
 
 - Animation speed: Fast, Normal, Slow. Default is Normal.
 - Card style: Classic, Modern, Minimal.
+- Card back: Classic, Blue, Red, Ornament, Dark. Default is Classic.
 - Legal hint color: Green, Blue, Gold, Purple, Red. Default is Gold.
 - Show legal move hints: default true.
 - Confirm new game: default true.

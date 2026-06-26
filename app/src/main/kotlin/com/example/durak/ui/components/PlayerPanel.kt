@@ -24,12 +24,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.example.durak.data.CardBackStyle
 import com.example.durak.game.Player
 
 @Composable
 fun PlayerPanel(
     player: Player,
     role: String,
+    cardBackStyle: CardBackStyle,
     modifier: Modifier = Modifier
 ) {
     val roleColor = when (role) {
@@ -83,6 +85,7 @@ fun PlayerPanel(
                 CardView(
                     card = null,
                     faceDown = true,
+                    cardBackStyle = cardBackStyle,
                     cardSize = CardSize(31.dp, 44.dp),
                     modifier = Modifier
                         .offset(x = ((index - visibleCards / 2f) * 12).dp)

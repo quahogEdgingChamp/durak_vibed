@@ -24,8 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.durak.data.AnimationSpeed
+import com.example.durak.data.CardBackStyle
 import com.example.durak.data.CardStyle
 import com.example.durak.data.LegalHintColor
+import com.example.durak.ui.components.CardSize
+import com.example.durak.ui.components.CardView
 import com.example.durak.viewmodel.GameViewModel
 import com.example.durak.viewmodel.Screen
 
@@ -40,6 +43,9 @@ fun SettingsScreen(viewModel: GameViewModel) {
         OptionGroup("Card style", CardStyle.entries, preferences.cardStyle, { it.title }) {
             viewModel.updateAppPreferences(preferences.copy(cardStyle = it))
         }
+        CardBackOptionGroup("Card back", CardBackStyle.entries, preferences.cardBackStyle, preferences.cardStyle) {
+            viewModel.updateAppPreferences(preferences.copy(cardBackStyle = it))
+        }
         ColorOptionGroup("Legal hint color", LegalHintColor.entries, preferences.legalHintColor) {
             viewModel.updateAppPreferences(preferences.copy(legalHintColor = it))
         }
@@ -51,6 +57,54 @@ fun SettingsScreen(viewModel: GameViewModel) {
         }
         Button(onClick = { viewModel.goTo(Screen.MENU) }, modifier = Modifier.fillMaxWidth()) { Text("Save") }
         OutlinedButton(onClick = { viewModel.goTo(Screen.MENU) }, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+    }
+}
+
+@Composable
+private fun CardBackOptionGroup(
+    label: String,
+    options: List<CardBackStyle>,
+    selected: CardBackStyle,
+    cardStyle: CardStyle,
+    onSelected: (CardBackStyle) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Text(label, fontWeight = FontWeight.Bold, color = Color(0xFF233126))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { option ->
+                val selectedOption = option == selected
+                val content: @Composable () -> Unit = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CardView(
+                            card = null,
+                            faceDown = true,
+                            cardBackStyle = option,
+                            cardSize = CardSize(26.dp, 36.dp),
+                            style = cardStyle
+                        )
+                        Text(option.displayName, fontWeight = if (selectedOption) FontWeight.Bold else FontWeight.SemiBold)
+                    }
+                }
+                if (selectedOption) {
+                    Button(
+                        onClick = { onSelected(option) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5B2A86), contentColor = Color.White),
+                        content = { content() }
+                    )
+                } else {
+                    OutlinedButton(
+                        onClick = { onSelected(option) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF27372A)),
+                        content = { content() }
+                    )
+                }
+            }
+        }
     }
 }
 

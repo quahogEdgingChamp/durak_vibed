@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.durak.data.CardBackStyle
 import com.example.durak.data.CardStyle
 import com.example.durak.game.Card
 import java.io.IOException
@@ -45,16 +46,18 @@ fun CardView(
     modifier: Modifier = Modifier,
     cardSize: CardSize = CardSize(),
     style: CardStyle = CardStyle.CLASSIC,
+    cardBackStyle: CardBackStyle = CardBackStyle.CLASSIC,
     faceDown: Boolean = false,
     playable: Boolean = false,
     disabled: Boolean = false,
     legalHintColor: Color = Color(0xFFFFC857)
 ) {
     val assetPath = when {
-        faceDown || card == null -> CardImageProvider.cardBackAssetPath()
+        faceDown || card == null -> CardImageProvider.cardBackAssetPath(cardBackStyle)
         else -> CardImageProvider.assetPathFor(card)
     }
-    val image = rememberAssetImage(assetPath)
+    val fallbackAssetPath = if (faceDown || card == null) CardImageProvider.fallbackCardBackAssetPath() else null
+    val image = rememberAssetImage(assetPath, fallbackAssetPath)
     val shape = RoundedCornerShape(9.dp)
     val cardColor = when (style) {
         CardStyle.CLASSIC -> Color(0xFFFFFBF1)
@@ -92,18 +95,21 @@ fun CardView(
 }
 
 @Composable
-private fun rememberAssetImage(assetPath: String): ImageBitmap? {
+private fun rememberAssetImage(assetPath: String, fallbackAssetPath: String? = null): ImageBitmap? {
     val context = LocalContext.current
-    return remember(assetPath) {
-        try {
-            context.assets.open(assetPath).use { input ->
-                BitmapFactory.decodeStream(input)?.asImageBitmap()
-            }
-        } catch (_: IOException) {
-            null
-        }
+    return remember(assetPath, fallbackAssetPath) {
+        loadAssetImage(context, assetPath) ?: fallbackAssetPath?.let { loadAssetImage(context, it) }
     }
 }
+
+private fun loadAssetImage(context: android.content.Context, assetPath: String): ImageBitmap? =
+    try {
+        context.assets.open(assetPath).use { input ->
+            BitmapFactory.decodeStream(input)?.asImageBitmap()
+        }
+    } catch (_: IOException) {
+        null
+    }
 
 @Composable
 fun MiniCardView(

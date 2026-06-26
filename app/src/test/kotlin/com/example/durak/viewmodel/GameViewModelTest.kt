@@ -1,6 +1,7 @@
 package com.example.durak.viewmodel
 
 import com.example.durak.data.AppPreferences
+import com.example.durak.data.CardBackStyle
 import com.example.durak.data.SavedGameDataSource
 import com.example.durak.data.SettingsDataSource
 import com.example.durak.game.GameSettings
@@ -20,6 +21,17 @@ class GameViewModelTest {
         assertNull(viewModel.gameState)
         assertEquals(Screen.MENU, viewModel.screen)
         assertEquals(false, viewModel.appPreferences.showLegalMoveHints)
+    }
+
+    @Test
+    fun cardBackPreferenceUpdatesAndPersistsInViewModelSettings() {
+        val settings = FakeSettingsDataSource()
+        val viewModel = GameViewModel(settings, FakeSavedGameDataSource())
+
+        viewModel.updateAppPreferences(viewModel.appPreferences.copy(cardBackStyle = CardBackStyle.DARK))
+
+        assertEquals(CardBackStyle.DARK, viewModel.appPreferences.cardBackStyle)
+        assertEquals(CardBackStyle.DARK, settings.loadAppPreferences().cardBackStyle)
     }
 }
 
