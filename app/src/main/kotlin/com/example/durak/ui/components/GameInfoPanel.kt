@@ -38,12 +38,12 @@ fun GameInfoPanel(
             .fillMaxWidth()
             .background(
                 Brush.horizontalGradient(
-                    listOf(Color(0xE81A382A), Color(0xD70D2118), Color(0xD6211A33))
+                    listOf(Color(0xEA10271D), Color(0xE30B1B14), Color(0xDA1B1730))
                 ),
                 RoundedCornerShape(16.dp)
             )
             .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(16.dp))
-            .padding(horizontal = 12.dp, vertical = 11.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -72,18 +72,18 @@ fun GameInfoPanel(
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleLarge,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                "${state.settings.gameMode.title}  |  Trump ${state.trumpCard}",
+                "${state.settings.gameMode.title}  |  Attacker: ${state.players[state.attackerIndex].name}  |  Defender: ${state.players[state.defenderIndex].name}",
                 color = Color.White.copy(alpha = 0.82f),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                "Attacker P${state.attackerIndex + 1}  |  Defender P${state.defenderIndex + 1}",
+                "Trump ${state.trumpCard}",
                 color = Color.White.copy(alpha = 0.68f),
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
@@ -92,7 +92,7 @@ fun GameInfoPanel(
             if (latestEvent.isNotBlank()) {
                 Text(
                     latestEvent,
-                    color = Color(0xFFFFE8A3),
+                    color = Color(0xFFFFE4A0),
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

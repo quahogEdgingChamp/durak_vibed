@@ -24,19 +24,29 @@ import com.example.durak.game.Card
 import com.example.durak.game.TableCard
 
 enum class TableExitDirection {
-    TAKE,
+    HUMAN_TAKE,
+    AI_TAKE,
     DISCARD
 }
 
 data class TableExitAnimation(
     val cards: List<Card>,
-    val direction: TableExitDirection
+    val direction: TableExitDirection,
+    val targetOffsetX: Float = 0f,
+    val targetOffsetY: Float = 0f
 ) {
     companion object {
-        fun fromTable(table: List<TableCard>, direction: TableExitDirection): TableExitAnimation =
+        fun fromTable(
+            table: List<TableCard>,
+            direction: TableExitDirection,
+            targetOffsetX: Float = 0f,
+            targetOffsetY: Float = 0f
+        ): TableExitAnimation =
             TableExitAnimation(
                 cards = table.flatMap { listOfNotNull(it.attack, it.defense) },
-                direction = direction
+                direction = direction,
+                targetOffsetX = targetOffsetX,
+                targetOffsetY = targetOffsetY
             )
     }
 }
@@ -57,22 +67,26 @@ fun TableExitOverlay(
         animationSpec = tween(durationMillis = durationMillis.coerceAtLeast(1), easing = LinearOutSlowInEasing),
         label = "tableExitProgress"
     )
-    val y = when (current.direction) {
-        TableExitDirection.TAKE -> 150f * progress
-        TableExitDirection.DISCARD -> -92f * progress
+    val fallbackY = when (current.direction) {
+        TableExitDirection.HUMAN_TAKE -> 190f
+        TableExitDirection.AI_TAKE -> -185f
+        TableExitDirection.DISCARD -> -18f
     }
-    val x = when (current.direction) {
-        TableExitDirection.TAKE -> 18f * progress
-        TableExitDirection.DISCARD -> 78f * progress
+    val fallbackX = when (current.direction) {
+        TableExitDirection.HUMAN_TAKE -> 0f
+        TableExitDirection.AI_TAKE -> 0f
+        TableExitDirection.DISCARD -> 190f
     }
+    val y = (current.targetOffsetY.takeIf { it != 0f } ?: fallbackY) * progress
+    val x = (current.targetOffsetX.takeIf { it != 0f } ?: fallbackX) * progress
 
     FlowRow(
         modifier = modifier
             .fillMaxSize()
             .offset(x = x.dp, y = y.dp)
             .graphicsLayer {
-                scaleX = 1f - progress * 0.12f
-                scaleY = 1f - progress * 0.12f
+                scaleX = 1f - progress * if (current.direction == TableExitDirection.DISCARD) 0.18f else 0.08f
+                scaleY = 1f - progress * if (current.direction == TableExitDirection.DISCARD) 0.18f else 0.08f
             }
             .alpha(1f - progress)
             .zIndex(20f),

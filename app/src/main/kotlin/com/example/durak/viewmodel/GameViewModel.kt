@@ -14,7 +14,6 @@ import com.example.durak.game.Card
 import com.example.durak.game.DropTarget
 import com.example.durak.game.GameEngine
 import com.example.durak.game.GameAction
-import com.example.durak.game.GameMode
 import com.example.durak.game.GamePhase
 import com.example.durak.game.GameSettings
 import com.example.durak.game.GameState
@@ -152,17 +151,10 @@ class GameViewModel(
         if (aiThinking) return "AI is thinking..."
         return when (state.phase) {
             GamePhase.DEALING -> "Dealing cards..."
-            GamePhase.HUMAN_ATTACK -> when (state.settings.gameMode) {
-                GameMode.CLASSIC, GameMode.TRANSFER, GameMode.CASUAL -> "Your attack. Play a card."
-            }
-            GamePhase.HUMAN_DEFENSE -> {
-                when (state.settings.gameMode) {
-                    GameMode.CLASSIC -> "Your defense. Beat the cards or take."
-                    GameMode.TRANSFER, GameMode.CASUAL -> "Your defense. Defend, transfer with matching rank, or take."
-                }
-            }
-            GamePhase.HUMAN_PASS_OR_DEFEND -> "Your defense. Defend, transfer with matching rank, or take."
-            GamePhase.HUMAN_THROW_IN -> "Choose a matching-rank card to add, or tap Done."
+            GamePhase.HUMAN_ATTACK -> "Your attack"
+            GamePhase.HUMAN_DEFENSE -> "Your defense"
+            GamePhase.HUMAN_PASS_OR_DEFEND -> "Your defense"
+            GamePhase.HUMAN_THROW_IN -> "Choose a card to add"
             GamePhase.AI_ATTACK, GamePhase.AI_DEFENSE, GamePhase.AI_THROW_IN, GamePhase.AI_PASS_OR_DEFEND -> "AI is thinking..."
             GamePhase.ROUND_RESOLUTION -> "Resolving the round..."
             GamePhase.GAME_OVER -> "Game over"
@@ -190,7 +182,8 @@ class GameViewModel(
                 show(describeAiMove(actor, move, state.message.ifBlank { result.message }))
                 persistGame()
                 guard++
-                if (wait > 0L) delay(180L)
+                val afterMovePause = aiAfterMovePauseMillis()
+                if (afterMovePause > 0L) delay(afterMovePause)
             }
             aiThinking = false
             if (state.status == GameStatus.FINISHED) screen = Screen.END
@@ -227,6 +220,13 @@ class GameViewModel(
             com.example.durak.data.AnimationSpeed.NORMAL -> base
         }
     }
+
+    private fun aiAfterMovePauseMillis(): Long =
+        when (appPreferences.animationSpeed) {
+            com.example.durak.data.AnimationSpeed.OFF -> 0L
+            com.example.durak.data.AnimationSpeed.FAST -> 360L
+            com.example.durak.data.AnimationSpeed.NORMAL -> 620L
+        }
 
     private fun persistGame() {
         gameState?.let(savedGameRepository::save)

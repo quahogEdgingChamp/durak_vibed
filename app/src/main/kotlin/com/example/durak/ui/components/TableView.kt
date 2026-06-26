@@ -1,5 +1,7 @@
 package com.example.durak.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -15,11 +17,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
@@ -88,6 +96,15 @@ private fun TablePairView(
     val cardSize = CardSize(54.dp, 78.dp)
     val defenseOffsetX = 24.dp
     val defenseOffsetY = 16.dp
+    var defensePlaced by remember(defenseCard) { mutableStateOf(false) }
+    LaunchedEffect(defenseCard) {
+        defensePlaced = defenseCard != null
+    }
+    val defenseProgress by animateFloatAsState(
+        targetValue = if (defenseCard != null && defensePlaced) 1f else 0f,
+        animationSpec = tween(durationMillis = AnimationDurations.DefendMs),
+        label = "defensePlacement"
+    )
     Box(
         modifier = Modifier
             .size(width = cardSize.width + defenseOffsetX, height = cardSize.height + defenseOffsetY)
@@ -115,6 +132,12 @@ private fun TablePairView(
                 style = cardStyle,
                 modifier = Modifier
                     .offset(x = defenseOffsetX, y = defenseOffsetY)
+                    .graphicsLayer {
+                        alpha = defenseProgress
+                        translationY = (1f - defenseProgress) * -18f
+                        scaleX = 0.94f + defenseProgress * 0.06f
+                        scaleY = 0.94f + defenseProgress * 0.06f
+                    }
                     .zIndex(1f)
             )
         } else {

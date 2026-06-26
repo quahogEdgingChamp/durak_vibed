@@ -46,6 +46,7 @@ import com.example.durak.game.DropTarget
 import com.example.durak.game.GameAction
 import com.example.durak.game.GameState
 import com.example.durak.ui.components.ActionBar
+import com.example.durak.ui.components.AnimationDurations
 import com.example.durak.ui.components.CardSize
 import com.example.durak.ui.components.CardView
 import com.example.durak.ui.components.GameInfoPanel
@@ -66,31 +67,62 @@ fun GameScreen(viewModel: GameViewModel) {
     var tableBounds by remember { mutableStateOf<Rect?>(null) }
     var dragState by remember { mutableStateOf(DragState()) }
     val dropTargetBounds = remember { mutableStateMapOf<DropTarget, Rect>() }
+    val opponentBounds = remember { mutableStateMapOf<Int, Rect>() }
     var showMenu by remember { mutableStateOf(false) }
     var confirmAction by remember { mutableStateOf<ConfirmAction?>(null) }
-    var previousTable by remember { mutableStateOf(state.table) }
+    var previousState by remember { mutableStateOf(state) }
     var tableExitAnimation by remember { mutableStateOf<TableExitAnimation?>(null) }
+    var tableExitDuration by remember { mutableStateOf(0) }
+    var handBounds by remember { mutableStateOf<Rect?>(null) }
     val cardStyle = viewModel.appPreferences.cardStyle
     val legalCards = if (viewModel.appPreferences.showLegalMoveHints) viewModel.getLegalCardsForHuman() else emptySet()
-    val tableExitDuration = tableExitDurationMillis(viewModel.appPreferences.animationSpeed)
+    val density = LocalDensity.current
 
     LaunchedEffect(state.table) {
         dropTargetBounds.clear()
     }
 
-    LaunchedEffect(state.table, state.message, tableExitDuration) {
-        val oldTable = previousTable
-        previousTable = state.table
-        if (oldTable.isNotEmpty() && state.table.isEmpty() && tableExitDuration > 0) {
-            val direction = if (state.message.contains("took", ignoreCase = true)) {
-                TableExitDirection.TAKE
-            } else {
-                TableExitDirection.DISCARD
+    LaunchedEffect(state, viewModel.appPreferences.animationSpeed, tableBounds, handBounds) {
+        val oldState = previousState
+        previousState = state
+        val oldTable = oldState.table
+        if (oldTable.isNotEmpty() && state.table.isEmpty()) {
+            val took = state.message.contains("took", ignoreCase = true)
+            val takingPlayer = oldState.defenderIndex
+            val direction = when {
+                took && takingPlayer == 0 -> TableExitDirection.HUMAN_TAKE
+                took -> TableExitDirection.AI_TAKE
+                else -> TableExitDirection.DISCARD
             }
-            val animation = TableExitAnimation.fromTable(oldTable, direction)
+            val duration = tableExitDurationMillis(direction, viewModel.appPreferences.animationSpeed)
+            if (duration <= 0) return@LaunchedEffect
+            val targetBounds = when (direction) {
+                TableExitDirection.HUMAN_TAKE -> handBounds
+                TableExitDirection.AI_TAKE -> opponentBounds[takingPlayer]
+                TableExitDirection.DISCARD -> null
+            }
+            val source = tableBounds?.center
+            val target = targetBounds?.center
+            val targetOffset = if (source != null && target != null) {
+                with(density) {
+                    Offset(
+                        x = (target.x - source.x).toDp().value,
+                        y = (target.y - source.y).toDp().value
+                    )
+                }
+            } else {
+                Offset.Zero
+            }
+            val animation = TableExitAnimation.fromTable(
+                table = oldTable,
+                direction = direction,
+                targetOffsetX = targetOffset.x,
+                targetOffsetY = targetOffset.y
+            )
+            tableExitDuration = duration
             tableExitAnimation = animation
             try {
-                delay(tableExitDuration.toLong())
+                delay(duration.toLong())
             } finally {
                 if (tableExitAnimation == animation) tableExitAnimation = null
             }
@@ -108,7 +140,10 @@ fun GameScreen(viewModel: GameViewModel) {
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            TopOpponents(state)
+            TopOpponents(
+                state = state,
+                onBoundsChanged = { index, bounds -> opponentBounds[index] = bounds }
+            )
             GameInfoPanel(
                 state = state,
                 prompt = viewModel.getUserPromptText(),
@@ -149,6 +184,7 @@ fun GameScreen(viewModel: GameViewModel) {
                 hand = state.players.first().hand,
                 legalCards = legalCards,
                 cardStyle = cardStyle,
+                modifier = Modifier.onGloballyPositioned { handBounds = it.boundsInRoot() },
                 onDragStart = { card, center ->
                     Log.d("DurakDrag", "drag start card=$card center=$center")
                     dragState = DragState(card = card, currentOffset = center, isDragging = true)
@@ -213,14 +249,23 @@ fun GameScreen(viewModel: GameViewModel) {
 }
 
 @Composable
-private fun TopOpponents(state: GameState) {
+private fun TopOpponents(
+    state: GameState,
+    onBoundsChanged: (Int, Rect) -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
     ) {
         state.players.drop(1).forEachIndexed { offset, player ->
             val index = offset + 1
-            PlayerPanel(player = player, role = roleFor(state, index), modifier = Modifier.weight(1f, fill = false))
+            PlayerPanel(
+                player = player,
+                role = roleFor(state, index),
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .onGloballyPositioned { onBoundsChanged(index, it.boundsInRoot()) }
+            )
         }
     }
 }
@@ -306,12 +351,13 @@ private data class DragState(
     val isDragging: Boolean = false
 )
 
-private fun tableExitDurationMillis(speed: AnimationSpeed): Int =
-    when (speed) {
-        AnimationSpeed.OFF -> 0
-        AnimationSpeed.FAST -> 260
-        AnimationSpeed.NORMAL -> 430
+private fun tableExitDurationMillis(direction: TableExitDirection, speed: AnimationSpeed): Int {
+    val base = when (direction) {
+        TableExitDirection.HUMAN_TAKE, TableExitDirection.AI_TAKE -> AnimationDurations.TakeMs
+        TableExitDirection.DISCARD -> AnimationDurations.DiscardMs
     }
+    return AnimationDurations.scale(base, speed)
+}
 
 private fun resolveDropTarget(
     positionInRoot: Offset,
