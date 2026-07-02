@@ -1,5 +1,6 @@
 package com.example.durak.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,7 @@ import com.example.durak.viewmodel.Screen
 
 @Composable
 fun NewGameScreen(viewModel: GameViewModel) {
+    BackHandler { viewModel.goTo(Screen.MENU) }
     val settings = viewModel.gameOptions
     MenuPanel {
         ScreenTitle("New Game")

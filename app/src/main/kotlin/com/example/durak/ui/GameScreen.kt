@@ -1,6 +1,6 @@
 package com.example.durak.ui
 
-import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,7 +73,7 @@ fun GameScreen(viewModel: GameViewModel) {
     val opponentBounds = remember { mutableStateMapOf<Int, Rect>() }
     var discardBounds by remember { mutableStateOf<Rect?>(null) }
     var showMenu by remember { mutableStateOf(false) }
-    var confirmAction by remember { mutableStateOf<ConfirmAction?>(null) }
+    var showRestartConfirm by remember { mutableStateOf(false) }
     var previousState by remember { mutableStateOf(state) }
     var tableExitAnimation by remember { mutableStateOf<TableExitAnimation?>(null) }
     var tableExitDuration by remember { mutableStateOf(0) }
@@ -83,6 +83,8 @@ fun GameScreen(viewModel: GameViewModel) {
     val legalHintColor = viewModel.appPreferences.legalHintColor.toComposeColor()
     val legalCards = if (viewModel.appPreferences.showLegalMoveHints) viewModel.getLegalCardsForHuman() else emptySet()
     val density = LocalDensity.current
+
+    BackHandler { showMenu = true }
 
     LaunchedEffect(state.table) {
         dropTargetBounds.clear()
@@ -205,7 +207,6 @@ fun GameScreen(viewModel: GameViewModel) {
                 legalHintColor = legalHintColor,
                 modifier = Modifier.onGloballyPositioned { handBounds = it.boundsInRoot() },
                 onDragStart = { card, center ->
-                    Log.d("DurakDrag", "drag start card=$card center=$center")
                     dragState = DragState(card = card, currentOffset = center, isDragging = true)
                 },
                 onDragMove = { center ->
@@ -213,7 +214,6 @@ fun GameScreen(viewModel: GameViewModel) {
                 },
                 onDragEnd = { card, center ->
                     val target = resolveDropTarget(center, tableBounds, dropTargetBounds)
-                    Log.d("DurakDrag", "drop card=$card center=$center target=$target")
                     dragState = DragState()
                     if (!viewModel.onCardDropped(card, target)) {
                         viewModel.invalidDrop(card)
@@ -237,31 +237,28 @@ fun GameScreen(viewModel: GameViewModel) {
             },
             onRestart = {
                 showMenu = false
-                if (viewModel.appPreferences.confirmNewGame) confirmAction = ConfirmAction.RESTART else viewModel.restartGame()
+                if (viewModel.appPreferences.confirmNewGame) showRestartConfirm = true else viewModel.restartGame()
             },
             onMainMenu = {
                 showMenu = false
-                if (viewModel.appPreferences.confirmNewGame) confirmAction = ConfirmAction.MAIN_MENU else viewModel.goTo(Screen.MENU)
+                viewModel.goTo(Screen.MENU)
             }
         )
     }
 
-    confirmAction?.let { action ->
+    if (showRestartConfirm) {
         AlertDialog(
-            onDismissRequest = { confirmAction = null },
-            title = { Text("Leave current game?") },
-            text = { Text("The current game is not saved yet. Continue?") },
+            onDismissRequest = { showRestartConfirm = false },
+            title = { Text("Restart game?") },
+            text = { Text("The current game will be replaced by a new one.") },
             confirmButton = {
                 Button(onClick = {
-                    confirmAction = null
-                    when (action) {
-                        ConfirmAction.RESTART -> viewModel.restartGame()
-                        ConfirmAction.MAIN_MENU -> viewModel.goTo(Screen.MENU)
-                    }
-                }) { Text("Continue") }
+                    showRestartConfirm = false
+                    viewModel.restartGame()
+                }) { Text("Restart") }
             },
             dismissButton = {
-                OutlinedButton(onClick = { confirmAction = null }) { Text("Cancel") }
+                OutlinedButton(onClick = { showRestartConfirm = false }) { Text("Cancel") }
             }
         )
     }
@@ -379,6 +376,7 @@ private fun PauseMenu(
 
 @Composable
 fun EndGameScreen(viewModel: GameViewModel) {
+    BackHandler { viewModel.goTo(Screen.MENU) }
     val state = viewModel.gameState
     val result = when {
         state == null -> "Game ended"
@@ -400,11 +398,6 @@ private fun roleFor(state: GameState, index: Int): String =
         state.defenderIndex -> "Defender"
         else -> "Waiting"
     }
-
-private enum class ConfirmAction {
-    RESTART,
-    MAIN_MENU
-}
 
 private data class DragState(
     val card: Card? = null,

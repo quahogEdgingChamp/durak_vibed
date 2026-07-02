@@ -17,8 +17,8 @@ class AIPlayer(
             val attack = firstOpenAttack(state) ?: return AiMove.Done
             val defenses = rules.getLegalDefenseCards(state, playerIndex, attack)
             val chosen = defenses.sortedWith(cardComparator(state.trumpSuit)).firstOrNull()
-            if (chosen != null && evaluator.cardDefenseCost(chosen, state.trumpSuit) < 34) return AiMove.Play(chosen)
-            return chosen?.let { if (state.drawPile.size > 8 && it.suit == state.trumpSuit) AiMove.Take else AiMove.Play(it) } ?: AiMove.Take
+            if (chosen != null && evaluator.cardDefenseCost(chosen, state.trumpSuit) < 34) return defendMove(attack, chosen)
+            return chosen?.let { if (state.drawPile.size > 8 && it.suit == state.trumpSuit) AiMove.Take else defendMove(attack, it) } ?: AiMove.Take
         }
         return chooseLowestAttackLikeMove(state, playerIndex)
     }
@@ -28,11 +28,12 @@ class AIPlayer(
         if (state.needsDefense && playerIndex == state.defenderIndex) {
             val pass = normalPass(state, playerIndex)
             if (pass != null) return AiMove.Play(pass)
+            if (evaluator.hasUnbeatableOpenAttack(state, playerIndex)) return AiMove.Take
             val attack = firstOpenAttack(state) ?: return AiMove.Done
             val defenses = rules.getLegalDefenseCards(state, playerIndex, attack)
             val nonTrump = defenses.filter { it.suit != state.trumpSuit }
             val chosen = (nonTrump.ifEmpty { defenses }).minByOrNull { evaluator.cardDefenseCost(it, state.trumpSuit) }
-            return chosen?.let { AiMove.Play(it) } ?: AiMove.Take
+            return chosen?.let { defendMove(attack, it) } ?: AiMove.Take
         }
 
         val legal = attackLikeCards(state, playerIndex)
@@ -53,7 +54,7 @@ class AIPlayer(
             val attack = firstOpenAttack(state) ?: return AiMove.Done
             val chosen = rules.getLegalDefenseCards(state, playerIndex, attack)
                 .maxByOrNull { evaluator.scoreDefenseMove(state, playerIndex, attack, it) }
-            return chosen?.let { AiMove.Play(it) } ?: AiMove.Take
+            return chosen?.let { defendMove(attack, it) } ?: AiMove.Take
         }
 
         val legal = attackLikeCards(state, playerIndex)
@@ -101,12 +102,15 @@ class AIPlayer(
     private fun firstOpenAttack(state: GameState): Card? =
         state.table.firstOrNull { it.defense == null }?.attack
 
+    private fun defendMove(attack: Card, card: Card): AiMove =
+        AiMove.Play(card, DropTarget.AttackCard(attack))
+
     private fun cardComparator(trumpSuit: Suit): Comparator<Card> =
         compareBy<Card>({ it.suit == trumpSuit }, { it.rank.strength }, { it.suit.ordinal })
 }
 
 sealed interface AiMove {
-    data class Play(val card: Card) : AiMove
+    data class Play(val card: Card, val target: DropTarget = DropTarget.Table) : AiMove
     data object Take : AiMove
     data object Done : AiMove
 }

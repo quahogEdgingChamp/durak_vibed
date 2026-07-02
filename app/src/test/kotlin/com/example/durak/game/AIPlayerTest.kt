@@ -20,7 +20,7 @@ class AIPlayerTest {
     fun normalAiAvoidsTrumpDefenseWhenSameSuitDefenseAvailable() {
         val state = defenseState(AiDifficulty.NORMAL, GameMode.TRANSFER)
         val move = AIPlayer().chooseMove(state, 1)
-        assertEquals(AiMove.Play(Card(Suit.CLUBS, Rank.JACK)), move)
+        assertEquals(AiMove.Play(Card(Suit.CLUBS, Rank.JACK), DropTarget.AttackCard(Card(Suit.CLUBS, Rank.TEN))), move)
     }
 
     @Test
@@ -32,7 +32,7 @@ class AIPlayerTest {
             }
         )
         val move = AIPlayer().chooseMove(state, 1)
-        assertEquals(AiMove.Play(Card(Suit.CLUBS, Rank.JACK)), move)
+        assertEquals(AiMove.Play(Card(Suit.CLUBS, Rank.JACK), DropTarget.AttackCard(Card(Suit.CLUBS, Rank.TEN))), move)
     }
 
     @Test
@@ -46,7 +46,7 @@ class AIPlayerTest {
     fun hardAiPreservesTrumpWhenNonTrumpDefenseAvailable() {
         val state = defenseState(AiDifficulty.HARD, GameMode.CLASSIC)
         val move = AIPlayer().chooseMove(state, 1)
-        assertEquals(AiMove.Play(Card(Suit.CLUBS, Rank.JACK)), move)
+        assertEquals(AiMove.Play(Card(Suit.CLUBS, Rank.JACK), DropTarget.AttackCard(Card(Suit.CLUBS, Rank.TEN))), move)
     }
 
     @Test
@@ -125,9 +125,64 @@ class AIPlayerTest {
         assertLegalMove(illegal, 1, illegalMove)
     }
 
+    @Test
+    fun hardAiDefendingWithMatchingRankTrumpDefendsInsteadOfTransferring() {
+        val trump = Card(Suit.HEARTS, Rank.SIX)
+        val attack = Card(Suit.SPADES, Rank.QUEEN)
+        val defenseCard = Card(Suit.HEARTS, Rank.QUEEN)
+        val state = GameState(
+            settings = GameSettings(gameMode = GameMode.TRANSFER, aiDifficulty = AiDifficulty.HARD, playerCount = 3),
+            players = listOf(
+                Player(0, "You", true, listOf(Card(Suit.SPADES, Rank.SIX))),
+                Player(1, "AI 1", false, listOf(defenseCard, Card(Suit.CLUBS, Rank.SIX))),
+                Player(2, "AI 2", false, listOf(Card(Suit.DIAMONDS, Rank.SIX), Card(Suit.SPADES, Rank.SEVEN), Card(Suit.DIAMONDS, Rank.EIGHT)))
+            ),
+            drawPile = emptyList(),
+            trumpCard = trump,
+            trumpSuit = trump.suit,
+            table = listOf(TableCard(attack)),
+            attackerIndex = 0,
+            defenderIndex = 1,
+            defenderHandSizeAtBoutStart = 2
+        )
+
+        val move = AIPlayer().chooseMove(state, 1)
+        assertEquals(AiMove.Play(defenseCard, DropTarget.AttackCard(attack)), move)
+
+        val play = move as AiMove.Play
+        val result = engine.playCard(state, 1, play.card, play.target)
+        assertTrue(result.state.table.none { it.defense == null })
+        assertTrue(result.state.discardPile.containsAll(listOf(attack, defenseCard)))
+    }
+
+    @Test
+    fun aiTakesImmediatelyWhenAnyOpenAttackIsUnbeatable() {
+        val trump = Card(Suit.HEARTS, Rank.SIX)
+        val state = GameState(
+            settings = GameSettings(gameMode = GameMode.TRANSFER, aiDifficulty = AiDifficulty.HARD, playerCount = 3),
+            players = listOf(
+                Player(0, "You", true, listOf(Card(Suit.SPADES, Rank.SIX))),
+                Player(1, "AI 1", false, listOf(Card(Suit.SPADES, Rank.KING), Card(Suit.CLUBS, Rank.SIX))),
+                Player(2, "AI 2", false, listOf(Card(Suit.DIAMONDS, Rank.SIX), Card(Suit.SPADES, Rank.SEVEN), Card(Suit.DIAMONDS, Rank.EIGHT)))
+            ),
+            drawPile = List(4) { Card(Suit.HEARTS, Rank.NINE) },
+            trumpCard = trump,
+            trumpSuit = trump.suit,
+            table = listOf(
+                TableCard(Card(Suit.SPADES, Rank.TEN)),
+                TableCard(Card(Suit.DIAMONDS, Rank.ACE))
+            ),
+            attackerIndex = 0,
+            defenderIndex = 1,
+            defenderHandSizeAtBoutStart = 2
+        )
+
+        assertEquals(AiMove.Take, AIPlayer().chooseMove(state, 1))
+    }
+
     private fun assertLegalMove(state: GameState, playerId: Int, move: AiMove) {
         when (move) {
-            is AiMove.Play -> assertTrue(engine.playCard(state, playerId, move.card).state != state)
+            is AiMove.Play -> assertTrue(engine.playCard(state, playerId, move.card, move.target).state != state)
             AiMove.Take -> assertTrue(state.currentActorIndex == playerId && state.table.isNotEmpty() && state.needsDefense)
             AiMove.Done -> assertTrue(
                 rules.canEndAttack(state, playerId) ||

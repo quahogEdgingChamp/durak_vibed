@@ -8,10 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.durak.data.SavedGameRepository
 import com.example.durak.data.SettingsRepository
 import com.example.durak.ui.EndGameScreen
@@ -33,11 +33,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun DurakApp() {
-    val context = LocalContext.current
-    val viewModel = remember {
+    val context = LocalContext.current.applicationContext
+    val viewModel: GameViewModel = viewModel {
         GameViewModel(
-            settingsRepository = SettingsRepository(context.applicationContext),
-            savedGameRepository = SavedGameRepository(context.applicationContext)
+            settingsRepository = SettingsRepository(context),
+            savedGameRepository = SavedGameRepository(context)
         )
     }
     MaterialTheme {

@@ -1,5 +1,6 @@
 package com.example.durak.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
@@ -9,10 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import com.example.durak.viewmodel.GameViewModel
-import com.example.durak.viewmodel.Screen
 
 @Composable
 fun RulesScreen(viewModel: GameViewModel) {
+    BackHandler { viewModel.backFromRules() }
     MenuPanel {
         Text("Rules", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         RuleText("Classic: matching-rank throw-ins are allowed. After every attack card is beaten, the attacker may add another card matching any visible table rank. Transfers are not allowed.")
@@ -21,7 +22,7 @@ fun RulesScreen(viewModel: GameViewModel) {
         RuleText("Attack limit: each bout allows at most min(5, defender hand size at bout start) attack cards.")
         RuleText("Decks: 24 cards use 9 through A, 36 cards use 6 through A, and 52 cards use 2 through A.")
         RuleText("In this app: drag highlighted cards from your hand to the table. Drop onto an attack card or slot to defend. In Transfer and Casual, drop a matching-rank card on the general table to transfer. Use Done to stop adding cards in Classic and Casual, and Take to pick up.")
-        Button(onClick = { viewModel.goTo(Screen.MENU) }, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+        Button(onClick = viewModel::backFromRules, modifier = Modifier.fillMaxWidth()) { Text("Back") }
     }
 }
 

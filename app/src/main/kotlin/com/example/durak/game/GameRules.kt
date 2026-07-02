@@ -23,10 +23,11 @@ class GameRules {
         return tableCard.defense == null && canBeat(attackCard, defenseCard, state.trumpSuit)
     }
 
-    fun canDefend(state: GameState, playerId: Int, defenseCard: Card): Boolean {
-        val attackCard = state.table.firstOrNull { it.defense == null }?.attack ?: return false
-        return canDefend(state, playerId, attackCard, defenseCard)
-    }
+    fun canDefend(state: GameState, playerId: Int, defenseCard: Card): Boolean =
+        firstDefendableAttack(state, playerId, defenseCard) != null
+
+    fun firstDefendableAttack(state: GameState, playerId: Int, defenseCard: Card): Card? =
+        state.table.firstOrNull { it.defense == null && canDefend(state, playerId, it.attack, defenseCard) }?.attack
 
     fun canAddMatchingRankCard(state: GameState, playerId: Int, card: Card): Boolean {
         if (state.status != GameStatus.IN_PROGRESS || card !in state.players[playerId].hand) return false
@@ -91,13 +92,12 @@ class GameRules {
 
     fun legalCards(state: GameState, playerId: Int): Set<Card> {
         val hand = state.players.getOrNull(playerId)?.hand ?: return emptySet()
-        val openAttack = state.table.firstOrNull { it.defense == null }?.attack
         return hand.filterTo(mutableSetOf()) { card ->
             canInitialAttack(state, playerId, card) ||
                 canAddMatchingRankCard(state, playerId, card) ||
                 canThrowInBeforeTake(state, playerId, card) ||
                 canTransfer(state, playerId, card) ||
-                (openAttack != null && canDefend(state, playerId, openAttack, card))
+                canDefend(state, playerId, card)
         }
     }
 

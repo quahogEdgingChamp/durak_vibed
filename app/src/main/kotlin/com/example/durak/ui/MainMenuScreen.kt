@@ -47,7 +47,10 @@ fun MainMenuScreen(viewModel: GameViewModel) {
             CardBackFan()
             GameLogo()
             GamePanel {
-                MenuButton("New Game", onClick = { viewModel.goTo(Screen.NEW_GAME) }, primary = true)
+                if (viewModel.canContinueGame) {
+                    MenuButton("Continue", onClick = viewModel::continueGame, primary = true)
+                }
+                MenuButton("New Game", onClick = { viewModel.goTo(Screen.NEW_GAME) }, primary = !viewModel.canContinueGame)
                 MenuButton("Rules", onClick = { viewModel.goTo(Screen.RULES) })
                 MenuButton("Settings", onClick = { viewModel.goTo(Screen.SETTINGS) })
             }

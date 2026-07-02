@@ -51,9 +51,37 @@ class GameViewModel(
         private set
 
     private var aiJob: Job? = null
+    private var savedGameAvailable by mutableStateOf(savedGameRepository.load() != null)
+    private var rulesReturnScreen = Screen.MENU
+
+    val canContinueGame: Boolean
+        get() = gameState?.status == GameStatus.IN_PROGRESS || savedGameAvailable
 
     fun goTo(next: Screen) {
+        if (next == Screen.RULES && screen != Screen.RULES) rulesReturnScreen = screen
         screen = next
+    }
+
+    fun backFromRules() {
+        screen = if (rulesReturnScreen == Screen.GAME && gameState?.status == GameStatus.IN_PROGRESS) {
+            Screen.GAME
+        } else {
+            Screen.MENU
+        }
+    }
+
+    fun continueGame() {
+        val current = gameState
+        if (current != null && current.status == GameStatus.IN_PROGRESS) {
+            screen = Screen.GAME
+            scheduleAiTurns()
+            return
+        }
+        val restored = savedGameRepository.load() ?: return
+        gameState = engine.withPhase(restored)
+        latestEvent = restored.message
+        screen = Screen.GAME
+        scheduleAiTurns()
     }
 
     fun updateGameOptions(next: GameSettings) {
@@ -69,9 +97,11 @@ class GameViewModel(
     fun startGame() {
         settingsRepository.saveGameSettings(gameOptions)
         savedGameRepository.clear()
+        savedGameAvailable = false
         gameState = engine.newGame(gameOptions)
         latestEvent = gameState?.message.orEmpty()
         screen = Screen.GAME
+        persistGame()
         scheduleAiTurns()
     }
 
@@ -107,7 +137,7 @@ class GameViewModel(
     }
 
     fun take() {
-        val state = gameState ?: return
+        val state = humanActionableState() ?: return
         val result = engine.take(state, 0)
         gameState = result.state
         show(result.state.message.ifBlank { result.message })
@@ -116,7 +146,7 @@ class GameViewModel(
     }
 
     fun done() {
-        val state = gameState ?: return
+        val state = humanActionableState() ?: return
         val result = engine.endAttack(state, 0)
         gameState = result.state
         show(result.state.message.ifBlank { result.message })
@@ -125,7 +155,7 @@ class GameViewModel(
     }
 
     fun pass() {
-        val state = gameState ?: return
+        val state = humanActionableState() ?: return
         if (state.isThrowInBeforeTake) {
             val result = engine.passThrowInBeforeTake(state, 0)
             gameState = result.state
@@ -135,6 +165,12 @@ class GameViewModel(
         } else {
             passHint()
         }
+    }
+
+    private fun humanActionableState(): GameState? {
+        val state = gameState ?: return null
+        if (state.currentActorIndex != 0 || state.status == GameStatus.FINISHED || aiThinking) return null
+        return state
     }
 
     fun passHint() {
@@ -188,7 +224,7 @@ class GameViewModel(
         aiJob = viewModelScope.launch {
             var state = gameState ?: return@launch
             var guard = 0
-            while (state.status == GameStatus.IN_PROGRESS && state.currentActorIndex != 0 && guard < 80) {
+            while (state.status == GameStatus.IN_PROGRESS && state.currentActorIndex != 0 && guard < 500) {
                 aiThinking = true
                 val wait = aiDelayMillis(state)
                 if (wait > 0L) delay(wait)
@@ -196,7 +232,7 @@ class GameViewModel(
                 val wasThrowInBeforeTake = state.isThrowInBeforeTake
                 val move = ai.chooseMove(state, actor)
                 val result = when (move) {
-                    is AiMove.Play -> engine.playCard(state, actor, move.card)
+                    is AiMove.Play -> engine.playCard(state, actor, move.card, move.target)
                     AiMove.Take -> engine.take(state, actor)
                     AiMove.Done -> if (state.isThrowInBeforeTake) {
                         engine.passThrowInBeforeTake(state, actor)
@@ -204,6 +240,7 @@ class GameViewModel(
                         engine.endAttack(state, actor)
                     }
                 }
+                if (result.state == state) break
                 state = result.state
                 gameState = state
                 show(describeAiMove(actor, move, result.state.message.ifBlank { result.message }, wasThrowInBeforeTake = wasThrowInBeforeTake))
@@ -266,7 +303,9 @@ class GameViewModel(
         }
 
     private fun persistGame() {
-        gameState?.let(savedGameRepository::save)
+        val state = gameState ?: return
+        savedGameRepository.save(state)
+        savedGameAvailable = state.status == GameStatus.IN_PROGRESS
     }
 
     private fun show(message: String) {

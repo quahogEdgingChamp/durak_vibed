@@ -1,5 +1,6 @@
 package com.example.durak.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ import com.example.durak.viewmodel.Screen
 
 @Composable
 fun SettingsScreen(viewModel: GameViewModel) {
+    BackHandler { viewModel.goTo(Screen.MENU) }
     val preferences = viewModel.appPreferences
     MenuPanel {
         Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)

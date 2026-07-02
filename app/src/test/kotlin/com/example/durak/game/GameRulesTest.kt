@@ -328,6 +328,39 @@ class GameRulesTest {
     private fun defenseState(mode: GameMode, attack: Card): GameState =
         emptyTableState(mode).copy(table = listOf(TableCard(attack)))
 
+    @Test
+    fun defenderCanDefendAnyOpenAttackNotJustTheFirst() {
+        val trump = Card(Suit.HEARTS, Rank.SIX)
+        val defenseCard = Card(Suit.SPADES, Rank.JACK)
+        val state = GameState(
+            settings = GameSettings(gameMode = GameMode.TRANSFER, playerCount = 3),
+            players = listOf(
+                Player(0, "You", true, listOf(defenseCard, Card(Suit.DIAMONDS, Rank.SEVEN))),
+                Player(1, "AI 1", false, listOf(Card(Suit.DIAMONDS, Rank.SIX), Card(Suit.DIAMONDS, Rank.NINE))),
+                Player(2, "AI 2", false, listOf(Card(Suit.CLUBS, Rank.SIX), Card(Suit.CLUBS, Rank.SEVEN), Card(Suit.CLUBS, Rank.EIGHT)))
+            ),
+            drawPile = List(6) { Card(Suit.HEARTS, Rank.NINE) },
+            trumpCard = trump,
+            trumpSuit = trump.suit,
+            table = listOf(
+                TableCard(Card(Suit.CLUBS, Rank.TEN)),
+                TableCard(Card(Suit.SPADES, Rank.TEN))
+            ),
+            attackerIndex = 2,
+            defenderIndex = 0,
+            defenderHandSizeAtBoutStart = 2
+        )
+
+        // J of spades beats only the second open attack (10 of spades).
+        assertTrue(rules.canDefend(state, 0, defenseCard))
+        assertTrue(defenseCard in rules.legalCards(state, 0))
+        assertEquals(Card(Suit.SPADES, Rank.TEN), rules.firstDefendableAttack(state, 0, defenseCard))
+
+        val result = GameEngine().playCard(state, 0, defenseCard, DropTarget.Table)
+        val defendedPair = result.state.table.first { it.attack == Card(Suit.SPADES, Rank.TEN) }
+        assertEquals(defenseCard, defendedPair.defense)
+    }
+
     private fun defendedState(mode: GameMode): GameState =
         emptyTableState(mode).copy(
             table = listOf(TableCard(Card(Suit.SPADES, Rank.NINE), Card(Suit.SPADES, Rank.QUEEN)))

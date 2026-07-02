@@ -4,10 +4,13 @@ import com.example.durak.data.AppPreferences
 import com.example.durak.data.CardBackStyle
 import com.example.durak.data.SavedGameDataSource
 import com.example.durak.data.SettingsDataSource
+import com.example.durak.game.GameEngine
 import com.example.durak.game.GameSettings
 import com.example.durak.game.GameState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GameViewModelTest {
@@ -21,6 +24,16 @@ class GameViewModelTest {
         assertNull(viewModel.gameState)
         assertEquals(Screen.MENU, viewModel.screen)
         assertEquals(false, viewModel.appPreferences.showLegalMoveHints)
+    }
+
+    @Test
+    fun continueIsOfferedOnlyWhenASavedGameExists() {
+        val emptySave = FakeSavedGameDataSource()
+        assertFalse(GameViewModel(FakeSettingsDataSource(), emptySave).canContinueGame)
+
+        val withSave = FakeSavedGameDataSource()
+        withSave.state = GameEngine().newGame(GameSettings())
+        assertTrue(GameViewModel(FakeSettingsDataSource(), withSave).canContinueGame)
     }
 
     @Test
@@ -51,7 +64,15 @@ private class FakeSettingsDataSource : SettingsDataSource {
 }
 
 private class FakeSavedGameDataSource : SavedGameDataSource {
-    override fun save(state: GameState) = Unit
-    override fun load(): GameState? = null
-    override fun clear() = Unit
+    var state: GameState? = null
+
+    override fun save(state: GameState) {
+        this.state = state
+    }
+
+    override fun load(): GameState? = state
+
+    override fun clear() {
+        state = null
+    }
 }

@@ -41,7 +41,11 @@ class GameEngine(private val rules: GameRules = GameRules()) {
             attackerIndex = attacker,
             defenderIndex = defender,
             defenderHandSizeAtBoutStart = players[defender].hand.size,
-            message = "Player ${attacker + 1} starts with the lowest trump."
+            message = if (attacker == 0) {
+                "You start with the lowest trump."
+            } else {
+                "${players[attacker].name} starts with the lowest trump."
+            }
         ))
     }
 
@@ -65,8 +69,14 @@ class GameEngine(private val rules: GameRules = GameRules()) {
             target is DropTarget.Table && rules.canInitialAttack(state, playerIndex, card) -> attack(state, playerIndex, card)
             rules.canInitialAttack(state, playerIndex, card) -> attack(state, playerIndex, card)
             rules.canAddMatchingRankCard(state, playerIndex, card) -> addMatchingRankCard(state, playerIndex, card)
-            rules.canDefend(state, playerIndex, card) -> defend(state, playerIndex, state.table.first { it.defense == null }.attack, card)
-            else -> MoveResult(state, "That card is not legal now.")
+            else -> {
+                val defendableAttack = rules.firstDefendableAttack(state, playerIndex, card)
+                if (defendableAttack != null) {
+                    defend(state, playerIndex, defendableAttack, card)
+                } else {
+                    MoveResult(state, "That card is not legal now.")
+                }
+            }
         }
     }
 

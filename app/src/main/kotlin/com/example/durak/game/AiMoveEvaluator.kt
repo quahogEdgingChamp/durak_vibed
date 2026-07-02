@@ -44,10 +44,13 @@ class AiMoveEvaluator(private val rules: GameRules) {
         return 35 + preserveTrumpBonus + pressureBonus - cardPenalty
     }
 
+    fun hasUnbeatableOpenAttack(state: GameState, playerId: Int): Boolean =
+        state.table.any { it.defense == null && rules.getLegalDefenseCards(state, playerId, it.attack).isEmpty() }
+
     fun shouldTakeInsteadOfDefend(state: GameState, playerId: Int): Boolean {
         val attackCard = state.table.firstOrNull { it.defense == null }?.attack ?: return false
+        if (hasUnbeatableOpenAttack(state, playerId)) return true
         val defenses = rules.getLegalDefenseCards(state, playerId, attackCard)
-        if (defenses.isEmpty()) return true
         if (state.drawPile.isEmpty()) return false
         val cheapest = defenses.minBy { cardDefenseCost(it, state.trumpSuit) }
         val tableSize = state.table.size * 2

@@ -34,6 +34,8 @@ permission.
 - Local settings for AI/table animation speed, card style, hint color, hints, and confirmations.
 - Distinct AI player badges, defense snap animation, and table cards flying to the correct take/discard target.
 - Configurable legal move highlight color.
+- Automatic game save: leave to the menu or close the app and pick the game back up with Continue.
+- System back button opens the in-game menu instead of quitting.
 
 ## Privacy
 
@@ -86,6 +88,7 @@ Release APKs are attached to GitHub Releases, not stored in the repository root.
 - Hand cards support tap-to-play and drag-to-drop.
 - The game info panel shows deck, table, and bita counts while omitting attacker/defender text to keep the prompt and event text readable.
 - Card back designs can be selected in Settings and are used for opponent cards and other face-down cards.
+- The game autosaves after every move; the main menu shows Continue when a game is in progress.
 
 Run unit tests:
 
@@ -107,5 +110,5 @@ app/src/main/kotlin/com/example/durak/
 
 ## Status
 
-This is a playable MVP. AI is intentionally simple, and full saved-game restore
-is not enabled yet.
+This is a playable offline game. The AI is heuristic (Easy/Normal/Hard), and
+games are automatically saved and restorable via Continue on the main menu.
